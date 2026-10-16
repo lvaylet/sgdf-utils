@@ -1,7 +1,7 @@
 """Tests unitaires et d'intégration pour `generer_contacts_vcf.py`.
 
 Vérifie :
-1. L'échappement vCard 3.0 (RFC 2426) et la décomposition des adresses postales.
+1. L'échappement vCard 3.0 (RFC 2426) et l'affectation directe de l'adresse (`Rue`, `Code postal`, `Ville`).
 2. L'exportation complète des coordonnées des parents (`N`, `FN` au format `Prénom NOM`,
    téléphones `CELL,VOICE,PREF`, `CELL,VOICE`, `HOME,VOICE`, `EMAIL` et `ADR`).
 3. La structuration du champ `NOTE` (`Enfants : Prénom NOM (Unité), ...`,
@@ -31,7 +31,6 @@ from generer_contacts_vcf import (
     ErreurGenerationVcf,
     FicheContactParent,
     construire_note_parent,
-    decomposer_adresse_postale,
     echapper_valeur_vcard,
     executer_generation_vcf,
     formater_enfants_et_unites,
@@ -58,43 +57,23 @@ def ecrire_classeur_parents_synthetique(
     classeur.save(chemin)
 
 
-def test_echappement_vcard_et_decomposition_adresse() -> None:
-    """Vérifie l'échappement RFC 2426 et la décomposition d'adresses postales."""
+def test_echappement_vcard_et_affectation_directe_adresse() -> None:
+    """Vérifie l'échappement RFC 2426 et l'affectation directe de `(rue, code_postal, ville)` dans `ADR`."""
     assert (
         echapper_valeur_vcard("Ligne 1, suite ; détail\nLigne 2")
         == r"Ligne 1\, suite \; détail\nLigne 2"
     )
     assert echapper_valeur_vcard(r"Chemin\Test") == r"Chemin\\Test"
 
-    assert decomposer_adresse_postale("12 Rue des Mouettes, 17000 LA ROCHELLE") == (
-        "12 Rue des Mouettes",
-        "LA ROCHELLE",
-        "17000",
-        "",
+    fiche_avec_virgule_rue = FicheContactParent(
+        nom="DUPONT",
+        prenom="Jean",
+        rue="10 Rue Du Port, Bâtiment B",
+        code_postal="17000",
+        ville="La Rochelle",
     )
-    assert decomposer_adresse_postale(
-        "10 Rue du Port, Bâtiment B, 17000 LA ROCHELLE"
-    ) == (
-        "10 Rue du Port, Bâtiment B",
-        "LA ROCHELLE",
-        "17000",
-        "",
-    )
-    assert decomposer_adresse_postale(
-        "5 Place Royale, 1000 BRUXELLES, BELGIQUE"
-    ) == (
-        "5 Place Royale",
-        "BRUXELLES",
-        "1000",
-        "BELGIQUE",
-    )
-    assert decomposer_adresse_postale("Adresse libre sans code postal") == (
-        "Adresse libre sans code postal",
-        "",
-        "",
-        "",
-    )
-    assert decomposer_adresse_postale("") == ("", "", "", "")
+    vcard = formater_vcard_parent(fiche_avec_virgule_rue)
+    assert r"ADR;TYPE=HOME:;;10 Rue Du Port\, Bâtiment B;La Rochelle;;17000;" in vcard
 
 
 def test_formatage_enfants_unites_et_construction_note() -> None:
@@ -152,7 +131,9 @@ def test_serialisation_vcard_parent_complet_et_partiel() -> None:
         adresse_email="jean-pierre.dupont@example.fr",
         noms_enfants="Lucas DUPONT, Emma DUPONT",
         unites_enfants="Farfadets, Louveteaux-Jeannettes",
-        adresse_physique="12 Rue des Mouettes, 17000 LA ROCHELLE",
+        rue="12 Rue Des Mouettes",
+        code_postal="17000",
+        ville="La Rochelle",
         numero_adherent="123456789",
         remarques="Parent Animateur Farfadet",
     )
@@ -167,7 +148,7 @@ def test_serialisation_vcard_parent_complet_et_partiel() -> None:
     assert "TEL;TYPE=CELL,VOICE:+33698765432" in lignes
     assert "TEL;TYPE=HOME,VOICE:+33546123456" in lignes
     assert "EMAIL;TYPE=INTERNET,HOME:jean-pierre.dupont@example.fr" in lignes
-    assert "ADR;TYPE=HOME:;;12 Rue des Mouettes;LA ROCHELLE;;17000;" in lignes
+    assert "ADR;TYPE=HOME:;;12 Rue Des Mouettes;La Rochelle;;17000;" in lignes
     assert (
         r"NOTE:Enfants : Lucas DUPONT (Farfadets)\, Emma DUPONT (Louveteaux-Jeannettes)"
         r"\nNuméro d'adhérent : 123456789\nRemarques : Parent Animateur Farfadet"
@@ -244,7 +225,9 @@ def test_generation_fichier_vcf_via_cli(tmp_path: Path) -> None:
                 "elodie.bernard@example.fr",
                 "Lucas BERNARD, Chloé BERNARD",
                 "Scouts-Guides, Farfadets",
-                "5 Avenue Coligny, 17000 LA ROCHELLE",
+                "5 Avenue Coligny",
+                "17000",
+                "La Rochelle",
                 "987654321",
                 "Parent Animateur Farfadet ; Enfant Lucas : Invité(e)",
             ],
@@ -257,6 +240,8 @@ def test_generation_fichier_vcf_via_cli(tmp_path: Path) -> None:
                 "",
                 "Tom MARTIN",
                 "Pionniers-Caravelles",
+                "",
+                "",
                 "",
                 "",
                 "",

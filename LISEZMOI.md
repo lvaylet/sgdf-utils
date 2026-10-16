@@ -74,9 +74,11 @@ Le script `extraire_contacts_parents.py` lit en lecture seule le fichier d'expor
 6. **`Adresse email`** : Adresse courriel personnelle (ou dédiée SGDF en repli).
 7. **`Noms des enfants`** : Liste des enfants regroupés sous la forme `Prénom NOM`, séparés par des virgules (ex. `Lucas BERNARD, Chloé BERNARD`).
 8. **`Unités des enfants`** : Unités courtes des enfants dans le même ordre que les enfants eux-mêmes (`Farfadets`, `Louveteaux-Jeannettes`, `Scouts-Guides`, `Pionniers-Caravelles`, `Compagnons`).
-9. **`Adresse physique`** : Adresse postale complète.
-10. **`Numéro d'adhérent`** : Numéro d'adhérent SGDF du parent (issu de sa fiche représentant légal ou de son inscription adulte).
-11. **`Remarques`** : Rôle éventuel du parent au sein du groupe (ex. `Parent Animateur Farfadet`, `Responsable de groupe`, délégations) et statut d'inscription des enfants s'il diffère de `Inscrit(e)` (`Pré-inscrit(e)` ou `Invité(e)`).
+9. **`Rue`** : Lignes d'adresse postale (`Ligne 1`, `Ligne 2`, `Ligne 3`) non vides normalisées en casse titre (minuscules avec la première lettre de chaque mot en majuscule) et séparées par `, `.
+10. **`Code postal`** : Code postal de l'adresse du parent.
+11. **`Ville`** : Municipalité de l'adresse du parent normalisée en casse titre (minuscules avec la première lettre de chaque mot en majuscule, ex. `La Rochelle`).
+12. **`Numéro d'adhérent`** : Numéro d'adhérent SGDF du parent (issu de sa fiche représentant légal ou de son inscription adulte).
+13. **`Remarques`** : Rôle éventuel du parent au sein du groupe (ex. `Parent Animateur Farfadet`, `Responsable de groupe`, délégations) et statut d'inscription des enfants s'il diffère de `Inscrit(e)` (`Pré-inscrit(e)` ou `Invité(e)`).
 
 ### Commandes d'utilisation
 
@@ -100,7 +102,7 @@ Le script `generer_contacts_vcf.py` lit en lecture seule l'onglet `ContactsParen
 - **Identité** : Nom structuré (`Nom`, `Prénom`) et nom complet affiché sous la forme `Prénom NOM`.
 - **Numéros de téléphone** : Téléphone portable principal (mobile préféré), téléphone portable secondaire et téléphone fixe domicile (lorsqu'ils sont renseignés).
 - **Adresse email** : Adresse courriel du parent (lorsqu'elle est renseignée).
-- **Adresse physique** : Adresse postale complète structurée (lorsqu'elle est renseignée).
+- **Adresse physique (`ADR`)** : Adresse postale structurée construite directement à partir des colonnes `Rue`, `Code postal` et `Ville` (lorsqu'elle est renseignée).
 - **Informations complémentaires (`NOTE`)** :
   - `Enfants : Prénom NOM (Unité), ...`
   - `Numéro d'adhérent : <numéro>` (uniquement s'il existe)

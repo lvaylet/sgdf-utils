@@ -39,7 +39,9 @@ EN_TETES_CONTACTS_PARENTS: tuple[str, ...] = (
     "Adresse email",
     "Noms des enfants",
     "Unités des enfants",
-    "Adresse physique",
+    "Rue",
+    "Code postal",
+    "Ville",
     "Numéro d'adhérent",
     "Remarques",
 )
@@ -110,7 +112,9 @@ class ProfilAdulteGroupe:
     telephone_portable_2: str = ""
     telephone_domicile: str = ""
     courriel: str = ""
-    adresse_physique: str = ""
+    rue: str = ""
+    code_postal: str = ""
+    ville: str = ""
 
 
 @dataclass
@@ -125,7 +129,9 @@ class ContactParent:
     adresse_email: str = ""
     enfants: list[EnfantRattache] = field(default_factory=list)
     unites: list[str] = field(default_factory=list)
-    adresse_physique: str = ""
+    rue: str = ""
+    code_postal: str = ""
+    ville: str = ""
     numero_adherent: str = ""
     remarques_liste: list[str] = field(default_factory=list)
 
@@ -152,7 +158,9 @@ class ContactParent:
         portable_secondaire: str = "",
         fixe: str = "",
         email: str = "",
-        adresse: str = "",
+        rue: str = "",
+        code_postal: str = "",
+        ville: str = "",
         numero_adherent: str = "",
     ) -> None:
         """Conserve la première valeur non vide pour chaque coordonnée du parent."""
@@ -176,8 +184,12 @@ class ContactParent:
             self.telephone_fixe = fixe
         if not self.adresse_email and email:
             self.adresse_email = email
-        if not self.adresse_physique and adresse:
-            self.adresse_physique = adresse
+        if not (self.rue or self.code_postal or self.ville) and (
+            rue or code_postal or ville
+        ):
+            self.rue = rue
+            self.code_postal = code_postal
+            self.ville = ville
         if not self.numero_adherent and numero_adherent:
             self.numero_adherent = numero_adherent
 
@@ -220,7 +232,7 @@ class ContactParent:
         return " ; ".join(self.remarques_liste)
 
     def vers_ligne_excel(self) -> list[str]:
-        """Convertit la fiche du parent en liste des 11 valeurs de colonnes attendues."""
+        """Convertit la fiche du parent en liste des 13 valeurs de colonnes attendues."""
         return [
             self.nom,
             self.prenom,
@@ -230,7 +242,9 @@ class ContactParent:
             self.adresse_email,
             self.noms_enfants,
             self.unites_enfants,
-            self.adresse_physique,
+            self.rue,
+            self.code_postal,
+            self.ville,
             self.numero_adherent,
             self.remarques,
         ]
@@ -374,31 +388,29 @@ def extraire_roles_delegations(texte_delegations: str, civilite: str = "M.") -> 
     return roles
 
 
-def assembler_adresse_physique(
+def normaliser_partie_adresse(texte_brut: str) -> str:
+    """Normalise une composante d'adresse en minuscules avec la première lettre de chaque mot en majuscule."""
+    texte = nettoyer_espaces(texte_brut).lower()
+    if not texte:
+        return ""
+    return re.sub(
+        r"(^|[\s\-'/,])([^\s\-'/,])",
+        lambda correspondance: correspondance.group(1) + correspondance.group(2).upper(),
+        texte,
+    )
+
+
+def assembler_rue(
     ligne1: str,
-    ligne2: str,
-    ligne3: str,
-    code_postal: str,
-    municipalite: str,
-    pays: str = "",
+    ligne2: str = "",
+    ligne3: str = "",
 ) -> str:
-    """Assemble proprement les composantes d'une adresse postale."""
+    """Regroupe et normalise en casse titre les lignes de rue non vides (`Ligne1`, `Ligne2`, `Ligne3`)."""
     elements: list[str] = []
     for ligne in (ligne1, ligne2, ligne3):
-        propre = nettoyer_espaces(ligne)
+        propre = normaliser_partie_adresse(ligne)
         if propre:
             elements.append(propre)
-
-    cp_propre = nettoyer_espaces(code_postal)
-    ville_propre = nettoyer_espaces(municipalite).upper()
-    bloc_ville = " ".join(part for part in (cp_propre, ville_propre) if part)
-    if bloc_ville:
-        elements.append(bloc_ville)
-
-    pays_propre = nettoyer_espaces(pays).upper()
-    if pays_propre and pays_propre != "FRANCE":
-        elements.append(pays_propre)
-
     return ", ".join(elements)
 
 
@@ -511,15 +523,23 @@ def construire_index_adultes(
                 val(ligne, "Individu.CourrielPersonnel")
                 or val(ligne, "Individu.CourrielDédiéSGDF")
             )
-        if not profil.adresse_physique:
-            profil.adresse_physique = assembler_adresse_physique(
-                val(ligne, "Individu.Adresse.Ligne1"),
-                val(ligne, "Individu.Adresse.Ligne2"),
-                val(ligne, "Individu.Adresse.Ligne3"),
-                val(ligne, "Individu.Adresse.CodePostal"),
-                val(ligne, "Individu.Adresse.Municipalite"),
-                val(ligne, "Individu.Adresse.Pays"),
-            )
+        rue_adulte = assembler_rue(
+            val(ligne, "Individu.Adresse.Ligne1"),
+            val(ligne, "Individu.Adresse.Ligne2"),
+            val(ligne, "Individu.Adresse.Ligne3"),
+        )
+        code_postal_adulte = normaliser_partie_adresse(
+            val(ligne, "Individu.Adresse.CodePostal")
+        )
+        ville_adulte = normaliser_partie_adresse(
+            val(ligne, "Individu.Adresse.Municipalite")
+        )
+        if not (profil.rue or profil.code_postal or profil.ville) and (
+            rue_adulte or code_postal_adulte or ville_adulte
+        ):
+            profil.rue = rue_adulte
+            profil.code_postal = code_postal_adulte
+            profil.ville = ville_adulte
 
     return index_adultes
 
@@ -568,13 +588,16 @@ def extraire_et_regrouper_parents(
                 val(ligne, f"{prefixe}.CourrielPersonnel")
                 or val(ligne, f"{prefixe}.CourrielDédiéSGDF")
             )
-            adresse_parent = assembler_adresse_physique(
+            rue_parent = assembler_rue(
                 val(ligne, f"{prefixe}.Adresse.Ligne1"),
                 val(ligne, f"{prefixe}.Adresse.Ligne2"),
                 val(ligne, f"{prefixe}.Adresse.Ligne3"),
-                val(ligne, f"{prefixe}.Adresse.CodePostal"),
-                val(ligne, f"{prefixe}.Adresse.Municipalite"),
-                val(ligne, f"{prefixe}.Adresse.Pays"),
+            )
+            code_postal_parent = normaliser_partie_adresse(
+                val(ligne, f"{prefixe}.Adresse.CodePostal")
+            )
+            ville_parent = normaliser_partie_adresse(
+                val(ligne, f"{prefixe}.Adresse.Municipalite")
             )
 
             contact.fusionner_coordonnees(
@@ -588,7 +611,9 @@ def extraire_et_regrouper_parents(
                     val(ligne, f"{prefixe}.TelephoneDomicile")
                 ),
                 email=courriel_parent,
-                adresse=adresse_parent,
+                rue=rue_parent,
+                code_postal=code_postal_parent,
+                ville=ville_parent,
                 numero_adherent=val(ligne, f"{prefixe}.CodeAdherent"),
             )
             contact.ajouter_enfant(enfant)
@@ -604,7 +629,9 @@ def extraire_et_regrouper_parents(
             portable_secondaire=profil_adulte.telephone_portable_2,
             fixe=profil_adulte.telephone_domicile,
             email=profil_adulte.courriel,
-            adresse=profil_adulte.adresse_physique,
+            rue=profil_adulte.rue,
+            code_postal=profil_adulte.code_postal,
+            ville=profil_adulte.ville,
             numero_adherent=profil_adulte.numero_adherent,
         )
 

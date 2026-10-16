@@ -38,7 +38,9 @@ EN_TETES_CONTACTS_PARENTS: tuple[str, ...] = (
     "Adresse email",
     "Noms des enfants",
     "Unités des enfants",
-    "Adresse physique",
+    "Rue",
+    "Code postal",
+    "Ville",
     "Numéro d'adhérent",
     "Remarques",
 )
@@ -60,7 +62,9 @@ class FicheContactParent:
     adresse_email: str = ""
     noms_enfants: str = ""
     unites_enfants: str = ""
-    adresse_physique: str = ""
+    rue: str = ""
+    code_postal: str = ""
+    ville: str = ""
     numero_adherent: str = ""
     remarques: str = ""
     etiquettes: tuple[str, ...] = ETIQUETTES_DEFAUT
@@ -88,40 +92,6 @@ def echapper_valeur_vcard(texte: str) -> str:
         .replace("\n", r"\n")
     )
     return texte_echappe
-
-
-def decomposer_adresse_postale(adresse_physique: str) -> tuple[str, str, str, str]:
-    """Décompose une adresse postale en `(rue, ville, code_postal, pays)` pour le champ `ADR`."""
-    adresse_propre = nettoyer_texte(adresse_physique)
-    if not adresse_propre:
-        return "", "", "", ""
-
-    segments = [seg.strip() for seg in adresse_propre.split(",") if seg.strip()]
-    motif_cp_ville = re.compile(r"^(\d{4,5})\s+(.+)$")
-
-    if len(segments) >= 2:
-        correspondance_fin = motif_cp_ville.match(segments[-1])
-        if correspondance_fin:
-            rue = ", ".join(segments[:-1])
-            code_postal = correspondance_fin.group(1)
-            ville = correspondance_fin.group(2)
-            return rue, ville, code_postal, ""
-
-        if len(segments) >= 3:
-            correspondance_avant_fin = motif_cp_ville.match(segments[-2])
-            if correspondance_avant_fin:
-                rue = ", ".join(segments[:-2])
-                code_postal = correspondance_avant_fin.group(1)
-                ville = correspondance_avant_fin.group(2)
-                pays = segments[-1]
-                return rue, ville, code_postal, pays
-
-    if len(segments) == 1:
-        correspondance_unique = motif_cp_ville.match(segments[0])
-        if correspondance_unique:
-            return "", correspondance_unique.group(2), correspondance_unique.group(1), ""
-
-    return adresse_propre, "", "", ""
 
 
 def formater_enfants_et_unites(noms_enfants: str, unites_enfants: str) -> str:
@@ -187,16 +157,12 @@ def formater_vcard_parent(fiche: FicheContactParent) -> str:
     if fiche.adresse_email:
         lignes_vcard.append(f"EMAIL;TYPE=INTERNET,HOME:{fiche.adresse_email}")
 
-    if fiche.adresse_physique:
-        rue, ville, code_postal, pays = decomposer_adresse_postale(
-            fiche.adresse_physique
-        )
+    if fiche.rue or fiche.code_postal or fiche.ville:
         lignes_vcard.append(
             "ADR;TYPE=HOME:;;"
-            f"{echapper_valeur_vcard(rue)};"
-            f"{echapper_valeur_vcard(ville)};;"
-            f"{echapper_valeur_vcard(code_postal)};"
-            f"{echapper_valeur_vcard(pays)}"
+            f"{echapper_valeur_vcard(fiche.rue)};"
+            f"{echapper_valeur_vcard(fiche.ville)};;"
+            f"{echapper_valeur_vcard(fiche.code_postal)};"
         )
 
     note_parent = construire_note_parent(fiche)
@@ -273,9 +239,11 @@ def lire_contacts_parents_excel(chemin_entree: Path) -> list[FicheContactParent]
                     adresse_email=valeurs[5],
                     noms_enfants=valeurs[6],
                     unites_enfants=valeurs[7],
-                    adresse_physique=valeurs[8],
-                    numero_adherent=valeurs[9],
-                    remarques=valeurs[10],
+                    rue=valeurs[8],
+                    code_postal=valeurs[9],
+                    ville=valeurs[10],
+                    numero_adherent=valeurs[11],
+                    remarques=valeurs[12],
                 )
             )
 

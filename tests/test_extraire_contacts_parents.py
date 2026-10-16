@@ -26,10 +26,11 @@ from extraire_contacts_parents import (
     EN_TETES_CONTACTS_PARENTS,
     NOM_ONGLET_ORIGINE,
     NOM_ONGLET_PARENTS,
-    assembler_adresse_physique,
+    assembler_rue,
     executer_extraction,
     extraire_et_regrouper_parents,
     normaliser_nom,
+    normaliser_partie_adresse,
     normaliser_prenom,
     normaliser_telephone,
     normaliser_unite_courte,
@@ -151,15 +152,16 @@ def test_normalisation_noms_prenoms_unites_et_adresses() -> None:
     )
     assert normaliser_unite_courte("3eme COMPAGNONS DE LA ROCHELLE", "140") == "Compagnons"
 
-    adresse = assembler_adresse_physique(
-        "10 Rue du Port",
-        "Bâtiment B",
+    rue = assembler_rue(
+        "10 RUE DU PORT",
+        "BÂTIMENT B",
         "",
-        "17000",
-        "La Rochelle",
-        "FRANCE",
     )
-    assert adresse == "10 Rue du Port, Bâtiment B, 17000 LA ROCHELLE"
+    assert rue == "10 Rue Du Port, Bâtiment B"
+    assert normaliser_partie_adresse("LA ROCHELLE") == "La Rochelle"
+    assert normaliser_partie_adresse("SAINT-XANDRE") == "Saint-Xandre"
+    assert normaliser_partie_adresse("L'HOUMEAU") == "L'Houmeau"
+    assert assembler_rue("  ", "", "   ") == ""
 
 
 def test_dedoublonnage_fratrie_enrichissement_et_tri_alphabetique() -> None:
@@ -262,6 +264,9 @@ def test_dedoublonnage_fratrie_enrichissement_et_tri_alphabetique() -> None:
     assert elodie.unites_enfants == "Scouts-Guides, Farfadets"
     assert elodie.telephone_portable_principal == "+33601020304"
     assert elodie.telephone_fixe == "+33546001122"
+    assert elodie.rue == "5 Avenue Coligny"
+    assert elodie.code_postal == "17000"
+    assert elodie.ville == "La Rochelle"
     assert elodie.numero_adherent == "987654321"
     assert "Parent Animateur Farfadet" in elodie.remarques
     assert "Enfant Lucas : Invité(e)" in elodie.remarques
@@ -334,6 +339,11 @@ def test_generation_classeur_excel_et_cli(tmp_path: Path) -> None:
                     "RepresentantLegal1.Nom": "DUPONT",
                     "RepresentantLegal1.Prenom": "JEAN-PIERRE",
                     "RepresentantLegal1.TelephonePortable1": "0612345678",
+                    "RepresentantLegal1.Adresse.Ligne1": "10 Rue du Port",
+                    "RepresentantLegal1.Adresse.Ligne2": "Bâtiment B",
+                    "RepresentantLegal1.Adresse.CodePostal": "17000",
+                    "RepresentantLegal1.Adresse.Municipalite": "LA ROCHELLE",
+                    "RepresentantLegal1.Adresse.Pays": "FRANCE",
                 }
             )
         ],
@@ -349,6 +359,7 @@ def test_generation_classeur_excel_et_cli(tmp_path: Path) -> None:
     feuille_parents = classeur[NOM_ONGLET_PARENTS]
     en_tetes = [cellule.value for cellule in feuille_parents[1]]
     assert tuple(en_tetes) == EN_TETES_CONTACTS_PARENTS
+    assert len(en_tetes) == 13
 
     premiere_ligne = [cellule.value for cellule in feuille_parents[2]]
     assert premiere_ligne[0] == "DUPONT"
@@ -356,7 +367,10 @@ def test_generation_classeur_excel_et_cli(tmp_path: Path) -> None:
     assert premiere_ligne[2] == "+33612345678"  # Format international sans espaces
     assert premiere_ligne[6] == "Léa DUPONT"
     assert premiere_ligne[7] == "Farfadets"
-    assert premiere_ligne[9] == "111222333"
+    assert premiere_ligne[8] == "10 Rue Du Port, Bâtiment B"
+    assert premiere_ligne[9] == "17000"
+    assert premiere_ligne[10] == "La Rochelle"
+    assert premiere_ligne[11] == "111222333"
 
 
 def test_integration_export_individus_reel(tmp_path: Path) -> None:
