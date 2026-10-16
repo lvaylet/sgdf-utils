@@ -19,13 +19,13 @@
       "echo '=================================================================='"
     ],
     "scripts": {
-      "verifier_environnement": [
+      "check_environment": [
         "python3 -c \"import pandas, bs4, lxml, xlrd, openpyxl, pytest; print('Vérification réussie : tous les paquets SGDF La Rochelle sont disponibles.')\""
       ],
-      "tester": [
+      "test": [
         "pytest"
       ],
-      "verifier_qualite": [
+      "check_quality": [
         "ruff check ."
       ]
     }

@@ -35,31 +35,31 @@ Dès cet instant :
 
 ### Basculer entre `flake.nix` et `devbox.json`
 
-Le fichier `.envrc` s'adapte automatiquement aux outils installés sur votre poste via la variable `OUTIL_ENVIRONNEMENT` :
+Le fichier `.envrc` s'adapte automatiquement aux outils installés sur votre poste via la variable `ENV_TOOL` :
 
-- **Comportement par défaut (`OUTIL_ENVIRONNEMENT=auto`)** : Utilise `flake.nix` si `nix` est installé, sinon bascule automatiquement sur `devbox.json` si `devbox` est installé.
+- **Comportement par défaut (`ENV_TOOL=auto`)** : Utilise `flake.nix` si `nix` est installé, sinon bascule automatiquement sur `devbox.json` si `devbox` est installé.
 - **Forcer l'utilisation de Nix Flakes (`flake.nix`)** :
 
   ```bash
-  OUTIL_ENVIRONNEMENT=flake direnv reload
+  ENV_TOOL=flake direnv reload
   ```
 
 - **Forcer l'utilisation de Jetify Devbox (`devbox.json`)** :
 
   ```bash
-  OUTIL_ENVIRONNEMENT=devbox direnv reload
+  ENV_TOOL=devbox direnv reload
   ```
 
 - **Enregistrer votre préférence localement** (sans modifier les fichiers suivis par Git) : créez un fichier `.envrc.local` à la racine :
 
   ```bash
-  echo "export OUTIL_ENVIRONNEMENT=devbox" > .envrc.local
+  echo "export ENV_TOOL=devbox" > .envrc.local
   direnv allow
   ```
 
-## 3. Extraction et regroupement des contacts des parents (`extraire_contacts_parents.py`)
+## 3. Extraction et regroupement des contacts des parents (`extract_parent_contacts.py`)
 
-Le script `extraire_contacts_parents.py` lit en lecture seule le fichier d'export SGDF (`ExportIndividus.xls`) et génère le classeur Excel `ContactsParents.xlsx` comprenant :
+Le script `extract_parent_contacts.py` lit en lecture seule le fichier d'export SGDF (`ExportIndividus.xls`) et génère le classeur Excel `ContactsParents.xlsx` comprenant :
 
 1. L'onglet **`ExportIndividus`** : copie tabulaire fidèle des données d'origine.
 2. L'onglet **`ContactsParents`** : liste des parents dédoublonnés sur `(Nom, Prénom)` et triés par ordre alphabétique français (Nom puis Prénom).
@@ -84,18 +84,18 @@ Le script `extraire_contacts_parents.py` lit en lecture seule le fichier d'expor
 
 ```bash
 # Exécution standard (lit ExportIndividus.xls et génère ContactsParents.xlsx)
-python3 extraire_contacts_parents.py
+python3 extract_parent_contacts.py
 
 # Exécution avec chemins personnalisés
-python3 extraire_contacts_parents.py --entree ExportIndividus.xls --sortie ContactsParents.xlsx
+python3 extract_parent_contacts.py --input ExportIndividus.xls --output ContactsParents.xlsx
 
 # Afficher l'aide en français
-python3 extraire_contacts_parents.py --help
+python3 extract_parent_contacts.py --help
 ```
 
-## 4. Génération du fichier d'import Google Contacts (`generer_contacts_vcf.py`)
+## 4. Génération du fichier d'import Google Contacts (`generate_contacts_vcf.py`)
 
-Le script `generer_contacts_vcf.py` lit en lecture seule l'onglet `ContactsParents` du classeur `ContactsParents.xlsx` et génère le fichier **`ContactParents.vcf`** (au format standard vCard 3.0 encodé en UTF-8) directement importable dans Google Contacts.
+Le script `generate_contacts_vcf.py` lit en lecture seule l'onglet `ContactsParents` du classeur `ContactsParents.xlsx` et génère le fichier **`ContactParents.vcf`** (au format standard vCard 3.0 encodé en UTF-8) directement importable dans Google Contacts.
 
 ### Contenu de chaque fiche dans `ContactParents.vcf`
 
@@ -113,13 +113,13 @@ Le script `generer_contacts_vcf.py` lit en lecture seule l'onglet `ContactsParen
 
 ```bash
 # Exécution standard (lit ContactsParents.xlsx et génère ContactParents.vcf)
-python3 generer_contacts_vcf.py
+python3 generate_contacts_vcf.py
 
 # Exécution avec chemins personnalisés
-python3 generer_contacts_vcf.py --entree ContactsParents.xlsx --sortie ContactParents.vcf
+python3 generate_contacts_vcf.py --input ContactsParents.xlsx --output ContactParents.vcf
 
 # Afficher l'aide en français
-python3 generer_contacts_vcf.py --help
+python3 generate_contacts_vcf.py --help
 ```
 
 ## 5. Vérification et tests

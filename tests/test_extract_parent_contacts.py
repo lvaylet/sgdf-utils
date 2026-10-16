@@ -1,4 +1,4 @@
-"""Tests unitaires et d'intégration pour `extraire_contacts_parents.py`.
+"""Tests unitaires et d'intégration pour `extract_parent_contacts.py`.
 
 Vérifie :
 1. La normalisation des noms (MAJUSCULES), prénoms (casse titre et composés) et unités courtes.
@@ -18,26 +18,26 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-RACINE_PROJET = Path(__file__).resolve().parent.parent
-if str(RACINE_PROJET) not in sys.path:
-    sys.path.insert(0, str(RACINE_PROJET))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-from extraire_contacts_parents import (
-    EN_TETES_CONTACTS_PARENTS,
-    NOM_ONGLET_ORIGINE,
-    NOM_ONGLET_PARENTS,
-    assembler_rue,
-    executer_extraction,
-    extraire_et_regrouper_parents,
-    normaliser_nom,
-    normaliser_partie_adresse,
-    normaliser_prenom,
-    normaliser_telephone,
-    normaliser_unite_courte,
-    principale,
+from extract_parent_contacts import (
+    PARENT_CONTACTS_HEADERS,
+    PARENTS_SHEET_NAME,
+    SOURCE_SHEET_NAME,
+    extract_and_group_parents,
+    join_street_lines,
+    main,
+    normalize_address_part,
+    normalize_first_name,
+    normalize_last_name,
+    normalize_phone,
+    normalize_short_unit,
+    run_extraction,
 )
 
-COLONNES_MINIMALES_TEST: list[str] = [
+MINIMAL_TEST_COLUMNS: list[str] = [
     "IndividuCivilite.NomCourt",
     "Individu.CodeAdherent",
     "Individu.Nom",
@@ -109,66 +109,66 @@ COLONNES_MINIMALES_TEST: list[str] = [
 ]
 
 
-def creer_ligne_test(valeurs: dict[str, str]) -> list[str]:
-    """Crée une ligne conforme à `COLONNES_MINIMALES_TEST` à partir d'un dictionnaire."""
-    return [valeurs.get(col, "") for col in COLONNES_MINIMALES_TEST]
+def build_test_row(values: dict[str, str]) -> list[str]:
+    """Crée une ligne conforme à `MINIMAL_TEST_COLUMNS` à partir d'un dictionnaire."""
+    return [values.get(col, "") for col in MINIMAL_TEST_COLUMNS]
 
 
-def ecrire_html_xls_synthetique(chemin: Path, lignes: list[list[str]]) -> None:
+def write_synthetic_html_xls(file_path: Path, rows: list[list[str]]) -> None:
     """Écrit un fichier HTML portant l'extension `.xls` imitant l'export de l'intranet SGDF."""
-    cellules_entete = "".join(f"<th>{col}</th>" for col in COLONNES_MINIMALES_TEST)
-    lignes_html = [f"<tr>{cellules_entete}</tr>"]
-    for ligne in lignes:
-        cellules = "".join(f"<td>{val}</td>" for val in ligne)
-        lignes_html.append(f"<tr>{cellules}</tr>")
-    contenu = f"<html><body><table>{''.join(lignes_html)}</table></body></html>"
-    chemin.write_text(contenu, encoding="utf-8")
+    header_cells = "".join(f"<th>{col}</th>" for col in MINIMAL_TEST_COLUMNS)
+    html_rows = [f"<tr>{header_cells}</tr>"]
+    for row in rows:
+        cells = "".join(f"<td>{val}</td>" for val in row)
+        html_rows.append(f"<tr>{cells}</tr>")
+    content = f"<html><body><table>{''.join(html_rows)}</table></body></html>"
+    file_path.write_text(content, encoding="utf-8")
 
 
-def test_normalisation_noms_prenoms_unites_et_adresses() -> None:
+def test_normalization_names_phones_units_and_addresses() -> None:
     """Vérifie la normalisation des noms, prénoms composés, téléphones, unités courtes et adresses."""
-    assert normaliser_nom("  dupont-moretti ") == "DUPONT-MORETTI"
-    assert normaliser_prenom("JEAN-BAPTISTE") == "Jean-Baptiste"
-    assert normaliser_prenom("  marie   claire ") == "Marie Claire"
-    assert normaliser_prenom("pierre-yves") == "Pierre-Yves"
+    assert normalize_last_name("  dupont-moretti ") == "DUPONT-MORETTI"
+    assert normalize_first_name("JEAN-BAPTISTE") == "Jean-Baptiste"
+    assert normalize_first_name("  marie   claire ") == "Marie Claire"
+    assert normalize_first_name("pierre-yves") == "Pierre-Yves"
 
-    assert normaliser_telephone("0687966975") == "+33687966975"
-    assert normaliser_telephone("06 87 96 69 75") == "+33687966975"
-    assert normaliser_telephone("05.46.12.34.56") == "+33546123456"
-    assert normaliser_telephone("0033687966975") == "+33687966975"
-    assert normaliser_telephone("+33 (0)6 87 96 69 75") == "+33687966975"
-    assert normaliser_telephone("687966975") == "+33687966975"
-    assert normaliser_telephone("") == ""
+    assert normalize_phone("0687966975") == "+33687966975"
+    assert normalize_phone("06 87 96 69 75") == "+33687966975"
+    assert normalize_phone("05.46.12.34.56") == "+33546123456"
+    assert normalize_phone("0033687966975") == "+33687966975"
+    assert normalize_phone("+33 (0)6 87 96 69 75") == "+33687966975"
+    assert normalize_phone("687966975") == "+33687966975"
+    assert normalize_phone("") == ""
 
-    assert normaliser_unite_courte("1ERE FARFADETS DE LA ROCHELLE", "170") == "Farfadets"
+    assert normalize_short_unit("1ERE FARFADETS DE LA ROCHELLE", "170") == "Farfadets"
     assert (
-        normaliser_unite_courte("1ERE LOUVETEAUX JEANNETTES DE LA ROCHELLE", "110")
+        normalize_short_unit("1ERE LOUVETEAUX JEANNETTES DE LA ROCHELLE", "110")
         == "Louveteaux-Jeannettes"
     )
-    assert normaliser_unite_courte("1ERE SCOUTS GUIDES DE LA ROCHELLE", "120") == "Scouts-Guides"
+    assert normalize_short_unit("1ERE SCOUTS GUIDES DE LA ROCHELLE", "120") == "Scouts-Guides"
     assert (
-        normaliser_unite_courte("1ERE PIONNIERS CARAVELLES DE LA ROCHELLE", "130")
+        normalize_short_unit("1ERE PIONNIERS CARAVELLES DE LA ROCHELLE", "130")
         == "Pionniers-Caravelles"
     )
-    assert normaliser_unite_courte("3eme COMPAGNONS DE LA ROCHELLE", "140") == "Compagnons"
+    assert normalize_short_unit("3eme COMPAGNONS DE LA ROCHELLE", "140") == "Compagnons"
 
-    rue = assembler_rue(
+    street = join_street_lines(
         "10 RUE DU PORT",
         "BÂTIMENT B",
         "",
     )
-    assert rue == "10 Rue Du Port, Bâtiment B"
-    assert normaliser_partie_adresse("LA ROCHELLE") == "La Rochelle"
-    assert normaliser_partie_adresse("SAINT-XANDRE") == "Saint-Xandre"
-    assert normaliser_partie_adresse("L'HOUMEAU") == "L'Houmeau"
-    assert assembler_rue("  ", "", "   ") == ""
+    assert street == "10 Rue Du Port, Bâtiment B"
+    assert normalize_address_part("LA ROCHELLE") == "La Rochelle"
+    assert normalize_address_part("SAINT-XANDRE") == "Saint-Xandre"
+    assert normalize_address_part("L'HOUMEAU") == "L'Houmeau"
+    assert join_street_lines("  ", "", "   ") == ""
 
 
-def test_dedoublonnage_fratrie_enrichissement_et_tri_alphabetique() -> None:
+def test_sibling_deduplication_enrichment_and_alphabetical_sorting() -> None:
     """Vérifie le dédoublonnage sur (Nom, Prénom), l'enrichissement adulte et le tri accentué."""
-    lignes = [
+    rows = [
         # Jeune 1 : Scouts-Guides (Invité(e)) avec Parent 1 (Élodie BERNARD) et Parent 2 (Marc BERNARD)
-        creer_ligne_test(
+        build_test_row(
             {
                 "Individu.Nom": "BERNARD",
                 "Individu.Prenom": "LUCAS",
@@ -189,7 +189,7 @@ def test_dedoublonnage_fratrie_enrichissement_et_tri_alphabetique() -> None:
             }
         ),
         # Jeune 2 (fratrie) : Farfadets (Inscrit(e)) avec les mêmes parents (ordre inverse de l'âge)
-        creer_ligne_test(
+        build_test_row(
             {
                 "Individu.Nom": "BERNARD",
                 "Individu.Prenom": "CHLOÉ",
@@ -206,7 +206,7 @@ def test_dedoublonnage_fratrie_enrichissement_et_tri_alphabetique() -> None:
             }
         ),
         # Jeune 3 : Scouts-Guides avec un parent portant un nom commençant par É (ÉVRARD)
-        creer_ligne_test(
+        build_test_row(
             {
                 "Individu.Nom": "MARTIN",
                 "Individu.Prenom": "TOM",
@@ -220,7 +220,7 @@ def test_dedoublonnage_fratrie_enrichissement_et_tri_alphabetique() -> None:
             }
         ),
         # Jeune 4 : Pionniers-Caravelles avec un parent ZIMMER
-        creer_ligne_test(
+        build_test_row(
             {
                 "Individu.Nom": "ZIMMER",
                 "Individu.Prenom": "HUGO",
@@ -234,7 +234,7 @@ def test_dedoublonnage_fratrie_enrichissement_et_tri_alphabetique() -> None:
             }
         ),
         # Fiche Adulte pour Élodie BERNARD : Parent Animateur Farfadet avec numéro d'adhérent
-        creer_ligne_test(
+        build_test_row(
             {
                 "IndividuCivilite.NomCourt": "Mme",
                 "Individu.CodeAdherent": "987654321",
@@ -249,10 +249,10 @@ def test_dedoublonnage_fratrie_enrichissement_et_tri_alphabetique() -> None:
         ),
     ]
 
-    contacts = extraire_et_regrouper_parents(COLONNES_MINIMALES_TEST, lignes)
+    contacts = extract_and_group_parents(MINIMAL_TEST_COLUMNS, rows)
 
     # 4 parents uniques attendus : BERNARD Élodie, BERNARD Marc, ÉVRARD Sophie, ZIMMER Paul
-    assert [(c.nom, c.prenom) for c in contacts] == [
+    assert [(c.last_name, c.first_name) for c in contacts] == [
         ("BERNARD", "Élodie"),
         ("BERNARD", "Marc"),
         ("ÉVRARD", "Sophie"),
@@ -260,29 +260,29 @@ def test_dedoublonnage_fratrie_enrichissement_et_tri_alphabetique() -> None:
     ]
 
     elodie = contacts[0]
-    assert elodie.noms_enfants == "Lucas BERNARD, Chloé BERNARD"
-    assert elodie.unites_enfants == "Scouts-Guides, Farfadets"
-    assert elodie.telephone_portable_principal == "+33601020304"
-    assert elodie.telephone_fixe == "+33546001122"
-    assert elodie.rue == "5 Avenue Coligny"
-    assert elodie.code_postal == "17000"
-    assert elodie.ville == "La Rochelle"
-    assert elodie.numero_adherent == "987654321"
-    assert "Parent Animateur Farfadet" in elodie.remarques
-    assert "Enfant Lucas : Invité(e)" in elodie.remarques
+    assert elodie.children_names == "Lucas BERNARD, Chloé BERNARD"
+    assert elodie.children_units == "Scouts-Guides, Farfadets"
+    assert elodie.primary_mobile_phone == "+33601020304"
+    assert elodie.landline_phone == "+33546001122"
+    assert elodie.street == "5 Avenue Coligny"
+    assert elodie.postal_code == "17000"
+    assert elodie.city == "La Rochelle"
+    assert elodie.member_id == "987654321"
+    assert "Parent Animateur Farfadet" in elodie.notes
+    assert "Enfant Lucas : Invité(e)" in elodie.notes
 
     # Pour Sophie ÉVRARD dont l'enfant s'appelle Tom MARTIN (nom différent), le nom de l'enfant est précisé
     sophie = contacts[2]
-    assert sophie.noms_enfants == "Tom MARTIN"
-    assert sophie.unites_enfants == "Scouts-Guides"
-    assert sophie.remarques == "Enfant Tom : Pré-inscrit(e)"
+    assert sophie.children_names == "Tom MARTIN"
+    assert sophie.children_units == "Scouts-Guides"
+    assert sophie.notes == "Enfant Tom : Pré-inscrit(e)"
 
 
-def test_reorganisation_numero_portable_depuis_fixe_ou_portable2() -> None:
+def test_mobile_phone_promotion_from_landline_or_secondary() -> None:
     """Vérifie le déplacement d'un portable (+336/+337) vers portable 1 avec priorité au fixe."""
-    lignes = [
+    rows = [
         # Cas 1 : Portable 1 vide, Fixe contient un +336 et Portable 2 contient un +337 -> priorité au Fixe
-        creer_ligne_test(
+        build_test_row(
             {
                 "Individu.Nom": "DURAND",
                 "Individu.Prenom": "ALICE",
@@ -305,29 +305,29 @@ def test_reorganisation_numero_portable_depuis_fixe_ou_portable2() -> None:
         ),
     ]
 
-    contacts = extraire_et_regrouper_parents(COLONNES_MINIMALES_TEST, lignes)
+    contacts = extract_and_group_parents(MINIMAL_TEST_COLUMNS, rows)
     claire, thomas = contacts[0], contacts[1]
 
-    assert claire.prenom == "Claire"
-    assert claire.telephone_portable_principal == "+33699887766"
-    assert claire.telephone_portable_secondaire == "+33711223344"
-    assert claire.telephone_fixe == ""
+    assert claire.first_name == "Claire"
+    assert claire.primary_mobile_phone == "+33699887766"
+    assert claire.secondary_mobile_phone == "+33711223344"
+    assert claire.landline_phone == ""
 
-    assert thomas.prenom == "Thomas"
-    assert thomas.telephone_portable_principal == "+33755667788"
-    assert thomas.telephone_portable_secondaire == ""
-    assert thomas.telephone_fixe == "+33546112233"
+    assert thomas.first_name == "Thomas"
+    assert thomas.primary_mobile_phone == "+33755667788"
+    assert thomas.secondary_mobile_phone == ""
+    assert thomas.landline_phone == "+33546112233"
 
 
-def test_generation_classeur_excel_et_cli(tmp_path: Path) -> None:
+def test_excel_workbook_generation_and_cli(tmp_path: Path) -> None:
     """Vérifie la génération complète du fichier `.xlsx` via la CLI."""
-    chemin_entree = tmp_path / "ExportTest.xls"
-    chemin_sortie = tmp_path / "ContactsParentsTest.xlsx"
+    input_path = tmp_path / "ExportTest.xls"
+    output_path = tmp_path / "ContactsParentsTest.xlsx"
 
-    ecrire_html_xls_synthetique(
-        chemin_entree,
+    write_synthetic_html_xls(
+        input_path,
         [
-            creer_ligne_test(
+            build_test_row(
                 {
                     "Individu.Nom": "DUPONT",
                     "Individu.Prenom": "LÉA",
@@ -349,73 +349,73 @@ def test_generation_classeur_excel_et_cli(tmp_path: Path) -> None:
         ],
     )
 
-    code_retour = principale(["--entree", str(chemin_entree), "--sortie", str(chemin_sortie)])
-    assert code_retour == 0
-    assert chemin_sortie.is_file()
+    exit_code = main(["--input", str(input_path), "--output", str(output_path)])
+    assert exit_code == 0
+    assert output_path.is_file()
 
-    classeur = load_workbook(chemin_sortie, data_only=True)
-    assert classeur.sheetnames == [NOM_ONGLET_ORIGINE, NOM_ONGLET_PARENTS]
+    workbook = load_workbook(output_path, data_only=True)
+    assert workbook.sheetnames == [SOURCE_SHEET_NAME, PARENTS_SHEET_NAME]
 
-    feuille_parents = classeur[NOM_ONGLET_PARENTS]
-    en_tetes = [cellule.value for cellule in feuille_parents[1]]
-    assert tuple(en_tetes) == EN_TETES_CONTACTS_PARENTS
-    assert len(en_tetes) == 13
+    parents_sheet = workbook[PARENTS_SHEET_NAME]
+    headers = [cell.value for cell in parents_sheet[1]]
+    assert tuple(headers) == PARENT_CONTACTS_HEADERS
+    assert len(headers) == 13
 
-    premiere_ligne = [cellule.value for cellule in feuille_parents[2]]
-    assert premiere_ligne[0] == "DUPONT"
-    assert premiere_ligne[1] == "Jean-Pierre"
-    assert premiere_ligne[2] == "+33612345678"  # Format international sans espaces
-    assert premiere_ligne[6] == "Léa DUPONT"
-    assert premiere_ligne[7] == "Farfadets"
-    assert premiere_ligne[8] == "10 Rue Du Port, Bâtiment B"
-    assert premiere_ligne[9] == "17000"
-    assert premiere_ligne[10] == "La Rochelle"
-    assert premiere_ligne[11] == "111222333"
+    first_row = [cell.value for cell in parents_sheet[2]]
+    assert first_row[0] == "DUPONT"
+    assert first_row[1] == "Jean-Pierre"
+    assert first_row[2] == "+33612345678"  # Format international sans espaces
+    assert first_row[6] == "Léa DUPONT"
+    assert first_row[7] == "Farfadets"
+    assert first_row[8] == "10 Rue Du Port, Bâtiment B"
+    assert first_row[9] == "17000"
+    assert first_row[10] == "La Rochelle"
+    assert first_row[11] == "111222333"
 
 
-def test_integration_export_individus_reel(tmp_path: Path) -> None:
+def test_real_individuals_export_integration(tmp_path: Path) -> None:
     """Vérifie l'extraction sur le fichier réel `ExportIndividus.xls` sans l'altérer."""
-    chemin_export = RACINE_PROJET / "ExportIndividus.xls"
-    if not chemin_export.is_file():
+    export_path = PROJECT_ROOT / "ExportIndividus.xls"
+    if not export_path.is_file():
         return
 
-    empreinte_avant = hashlib.sha256(chemin_export.read_bytes()).hexdigest()
-    chemin_sortie = tmp_path / "ContactsParents.xlsx"
+    digest_before = hashlib.sha256(export_path.read_bytes()).hexdigest()
+    output_path = tmp_path / "ContactsParents.xlsx"
 
-    contacts = executer_extraction(chemin_entree=chemin_export, chemin_sortie=chemin_sortie)
+    contacts = run_extraction(input_path=export_path, output_path=output_path)
 
-    empreinte_apres = hashlib.sha256(chemin_export.read_bytes()).hexdigest()
-    assert empreinte_avant == empreinte_apres, "`ExportIndividus.xls` ne doit subir aucune modification."
+    digest_after = hashlib.sha256(export_path.read_bytes()).hexdigest()
+    assert digest_before == digest_after, "`ExportIndividus.xls` ne doit subir aucune modification."
 
     # 1. Nombre exact de parents uniques dédoublonnés sur (Nom, Prénom) : 134
     assert len(contacts) == 134
-    cles = [(c.nom, c.prenom) for c in contacts]
-    assert len(cles) == len(set(cles)), "Aucun doublon (Nom, Prénom) ne doit subsister."
+    keys = [(c.last_name, c.first_name) for c in contacts]
+    assert len(keys) == len(set(keys)), "Aucun doublon (Nom, Prénom) ne doit subsister."
 
     # 2. Vérification du formatage NOM (MAJUSCULES), Prénom (casse titre) et téléphones (+33 sans espaces)
     for contact in contacts:
-        assert contact.nom == contact.nom.upper()
-        assert contact.prenom != contact.prenom.upper()
-        assert contact.noms_enfants != ""
-        assert contact.unites_enfants != ""
-        for numero in (
-            contact.telephone_portable_principal,
-            contact.telephone_portable_secondaire,
-            contact.telephone_fixe,
+        assert contact.last_name == contact.last_name.upper()
+        assert contact.first_name != contact.first_name.upper()
+        assert contact.children_names != ""
+        assert contact.children_units != ""
+        for phone in (
+            contact.primary_mobile_phone,
+            contact.secondary_mobile_phone,
+            contact.landline_phone,
         ):
-            if numero:
-                assert numero.startswith("+33")
-                assert " " not in numero
+            if phone:
+                assert phone.startswith("+33")
+                assert " " not in phone
 
     # 3. Vérification de l'enrichissement des Parents Animateurs Farfadets (18 fonctions principales + 2 délégations = 20)
-    parents_farfadets = [
-        c for c in contacts if "Parent Animateur Farfadet" in c.remarques
+    farfadet_parents = [
+        c for c in contacts if "Parent Animateur Farfadet" in c.notes
     ]
-    assert len(parents_farfadets) == 20
-    assert sum(1 for c in parents_farfadets if c.numero_adherent != "") >= 13
+    assert len(farfadet_parents) == 20
+    assert sum(1 for c in farfadet_parents if c.member_id != "") >= 13
 
     # 4. Vérification du classeur Excel généré
-    classeur = load_workbook(chemin_sortie, data_only=True)
-    assert classeur.sheetnames == [NOM_ONGLET_ORIGINE, NOM_ONGLET_PARENTS]
-    assert classeur[NOM_ONGLET_ORIGINE].max_row == 154  # 1 en-tête + 153 lignes
-    assert classeur[NOM_ONGLET_PARENTS].max_row == 135  # 1 en-tête + 134 parents
+    workbook = load_workbook(output_path, data_only=True)
+    assert workbook.sheetnames == [SOURCE_SHEET_NAME, PARENTS_SHEET_NAME]
+    assert workbook[SOURCE_SHEET_NAME].max_row == 154  # 1 en-tête + 153 lignes
+    assert workbook[PARENTS_SHEET_NAME].max_row == 135  # 1 en-tête + 134 parents

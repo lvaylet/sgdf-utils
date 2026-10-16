@@ -1,41 +1,36 @@
 <!--
 Sync Impact Report
-- Version change: [CONSTITUTION_VERSION] (template initial) → 1.0.0
-- Principes définis (remplacement des emplacements génériques du modèle) :
-  - [PRINCIPLE_1_NAME] → I. Usage Intégral du Français (NON-NÉGOCIABLE)
-  - [PRINCIPLE_2_NAME] → II. Environnement de Développement Éphémère et Déclaratif
-  - [PRINCIPLE_3_NAME] → III. Automatisation Modulaire en Python 3
-  - [PRINCIPLE_4_NAME] → IV. Protection des Données Personnelles et Intégrité des Sources
-  - [PRINCIPLE_5_NAME] → V. Simplicité et Maintenabilité pour les Bénévoles
-- Sections ajoutées :
-  - Contraintes Techniques et Environnement
-  - Flux de Travail et Assurance Qualité
-- Sections supprimées : Aucune
-- Modèles dépendants vérifiés (non modifiés conformément au périmètre de la commande) :
-  - ✅ .specify/templates/plan-template.md
-  - ✅ .specify/templates/spec-template.md
-  - ✅ .specify/templates/tasks-template.md
-- Suivi (TODOs différés) : Aucun
+- Version change: 1.0.0 → 2.0.0
+- Modified principles:
+  - I. Usage Intégral du Français (NON-NÉGOCIABLE) → I. Code en Anglais et Documentation en Français (NON-NÉGOCIABLE)
+- Modified sections:
+  - Contraintes Techniques et Environnement (identifiants de code en anglais selon PEP 8, commentaires et README.md en français)
+  - Flux de Travail et Assurance Qualité (référence à README.md pour la documentation en français)
+  - Governance (mise à jour de la revue de conformité sur la répartition anglais/français)
+- Added sections: Aucune
+- Removed sections: Aucune
+- Follow-up TODOs: Aucun
 -->
 # Automatisation SGDF La Rochelle (Contacts Parents) Constitution
 
 ## Core Principles
 
-### I. Usage Intégral du Français (NON-NÉGOCIABLE)
-La totalité des écrits du projet DOIT être rédigée en langue française. Cette règle s'applique
-sans exception à la documentation, aux spécifications, aux messages de validation (commits), aux
-commentaires, aux noms de fichiers et de dossiers créés pour le projet, ainsi qu'à l'ensemble des
-identifiants dans le code source (noms de modules, de variables, de fonctions, de classes, de
-constantes et de paramètres) et aux messages affichés à l'utilisateur. Seuls les mots-clés du
-langage Python, les fichiers de configuration imposés par des outils tiers (tels que `.envrc`,
-`flake.nix` ou `devbox.json`) et les appels aux bibliothèques externes conservent leur nommage
-d'origine.
+### I. Code en Anglais et Documentation en Français (NON-NÉGOCIABLE)
 
-**Justification** : Garantir une compréhension immédiate, homogène et sans barrière linguistique
-pour tous les bénévoles et responsables du groupe scout SGDF de La Rochelle amenés à lire, utiliser
-ou maintenir ces scripts.
+L'intégralité du code source du projet DOIT être rédigée en langue anglaise. Cette règle s'applique
+sans exception à tous les identifiants du code : noms de variables, de fonctions, de méthodes, de
+classes, de constantes, de paramètres et de modules Python. En revanche, le reste de la base de code
+et des écrits du projet DOIT rester rédigé en français : cela inclut les commentaires dans le code
+(ainsi que les docstrings), la documentation (dont le fichier principal nommé `README.md`), les
+spécifications, les messages de validation (commits) et les messages affichés à l'utilisateur.
+
+**Justification** : Aligner le code source sur les standards universels de l'écosystème Python tout
+en garantissant une compréhension immédiate, homogène et sans barrière linguistique des explications,
+commentaires et documentations pour tous les bénévoles et responsables du groupe scout SGDF de
+La Rochelle.
 
 ### II. Environnement de Développement Éphémère et Déclaratif
+
 Le projet DOIT fournir un environnement de développement éphémère, reproductible et isolé du
 système hôte, reposant sur le gestionnaire de paquets Nix (avec `flakes` et `nix-command` activés)
 et/ou sur Jetify Devbox. Cet environnement DOIT inclure Python 3 ainsi que l'intégralité des
@@ -48,6 +43,7 @@ DOIT être requise.
 main instantanée dès l'ouverture du répertoire de travail, sans polluer le système hôte.
 
 ### III. Automatisation Modulaire en Python 3
+
 Chaque tâche manuelle répétitive identifiée au sein du groupe SGDF de La Rochelle DOIT être
 automatisée sous forme de script Python 3 clair, autonome et exécutable en ligne de commande (CLI).
 Les scripts DOIVENT gérer explicitement les erreurs d'entrée/sortie (fichiers manquants, formats
@@ -59,6 +55,7 @@ d'échec).
 le temps consacré aux manipulations manuelles sujettes aux erreurs humaines.
 
 ### IV. Protection des Données Personnelles et Intégrité des Sources
+
 Les scripts manipulent des données personnelles d'adhérents, de jeunes et de parents du groupe
 scout (notamment des exports de type `ExportIndividus.xls`). Aucune donnée personnelle nominative
 (noms, adresses électroniques, numéros de téléphone, adresses postales) NE DOIT être inscrite en
@@ -70,6 +67,7 @@ sortie distincts afin de ne jamais altérer ni corrompre les exports originaux.
 préserver l'intégrité des fichiers d'export issus de l'intranet SGDF.
 
 ### V. Simplicité et Maintenabilité pour les Bénévoles
+
 Les solutions implémentées DOIVENT privilégier la simplicité (principe YAGNI), la lisibilité du
 code et l'utilisation de la bibliothèque standard Python ou de bibliothèques tierces éprouvées et
 strictement nécessaires au traitement des données (comme la lecture de tableurs). Toute abstraction
@@ -86,16 +84,18 @@ impose que le code reste simple à comprendre, à diagnostiquer et à adapter d'
 - **Exécution et dépendances** : Python 3 et tous les paquets système ou bibliothèques Python
   nécessaires DOIVENT être déclarés dans les fichiers d'environnement (`flake.nix` et/ou
   `devbox.json`) et chargés automatiquement par `direnv` via `.envrc`.
-- **Conventions de nommage** : Les fichiers Python (`.py`), la documentation (`.md`), les modules,
-  les fonctions, les variables et les arguments CLI DOIVENT utiliser des identifiants en français
-  respectant les conventions PEP 8 (`snake_case` en français pour les fichiers, fonctions et
-  variables ; `PascalCase` en français pour les classes).
+- **Conventions de nommage et de langue** : Les identifiants dans le code Python (modules, fichiers
+  `.py`, fonctions, méthodes, variables, constantes, paramètres et classes) DOIVENT être rédigés en
+  anglais et respecter les conventions PEP 8 (`snake_case` en anglais pour les fichiers, fonctions
+  et variables ; `PascalCase` en anglais pour les classes ; `UPPER_SNAKE_CASE` en anglais pour les
+  constantes). Les commentaires dans le code et la documentation DOIVENT être rédigés en français,
+  et le fichier principal de documentation à la racine du dépôt DOIT être nommé `README.md`.
 
 ## Flux de Travail et Assurance Qualité
 
-- **Documentation en français** : Chaque script ou fonctionnalité DOIT être accompagné d'instructions
-  d'utilisation claires en français expliquant les fichiers d'entrée attendus, les commandes à
-  exécuter et les résultats produits.
+- **Documentation en français** : Le fichier `README.md` et toute documentation associée DOIVENT
+  fournir des instructions d'utilisation claires en français expliquant les fichiers d'entrée
+  attendus, les commandes à exécuter et les résultats produits.
 - **Vérification dans l'environnement éphémère** : Toute exécution, validation ou vérification de
   script DOIT s'effectuer au sein de l'environnement isolé fourni par Nix / Devbox et activé par
   `direnv`.
@@ -119,7 +119,8 @@ Cette constitution prévaut sur toute autre pratique implicite au sein du projet
 - **Revue de conformité** : Toute spécification (`/speckit.specify`), tout plan d'implémentation
   (`/speckit.plan`), toute liste de tâches (`/speckit.tasks`) et toute implémentation
   (`/speckit.implement`) DOIVENT vérifier leur conformité stricte avec les principes de cette
-  constitution, en particulier l'usage intégral du français et l'utilisation de l'environnement
-  éphémère Nix/Devbox activé par `direnv`.
+  constitution, en particulier la rédaction du code en anglais, le maintien des commentaires et de
+  la documentation (`README.md`) en français, et l'utilisation de l'environnement éphémère
+  Nix/Devbox activé par `direnv`.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-10-16
+**Version**: 2.0.0 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-10-16

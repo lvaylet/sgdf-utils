@@ -8,20 +8,20 @@
 
   outputs = { self, nixpkgs }:
     let
-      systemesSupportes = [
+      supportedSystems = [
         "x86_64-linux"
         "aarch64-linux"
         "x86_64-darwin"
         "aarch64-darwin"
       ];
-      pourChaqueSysteme = f: nixpkgs.lib.genAttrs systemesSupportes (systeme: f {
-        pkgs = import nixpkgs { inherit systeme; system = systeme; };
+      forEachSystem = f: nixpkgs.lib.genAttrs supportedSystems (system: f {
+        pkgs = import nixpkgs { inherit system; };
       });
     in
     {
-      devShells = pourChaqueSysteme ({ pkgs }:
+      devShells = forEachSystem ({ pkgs }:
         let
-          environnementPython = pkgs.python3.withPackages (paquetsPython: with paquetsPython; [
+          pythonEnv = pkgs.python3.withPackages (pythonPackages: with pythonPackages; [
             pandas
             beautifulsoup4
             lxml
@@ -33,7 +33,7 @@
         {
           default = pkgs.mkShell {
             packages = [
-              environnementPython
+              pythonEnv
               pkgs.ruff
             ];
 
