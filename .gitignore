@@ -6,6 +6,8 @@
 *.xls
 *.xlsx
 *.csv
+*.vcf
+ContactParents.vcf
 ExportIndividus*
 sorties/
 donnees/
