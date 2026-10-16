@@ -1,0 +1,39 @@
+# ==============================================================================
+# Fichier d'exclusion Git - Groupe Scout SGDF La Rochelle (Contacts Parents)
+# ==============================================================================
+
+# 1. Protection des données personnelles des familles et adhérents (RGPD - Principe IV)
+*.xls
+*.xlsx
+*.csv
+ExportIndividus*
+sorties/
+donnees/
+
+# 2. Caches et artefacts locaux des environnements éphémères (direnv, Nix, Devbox)
+.direnv/
+.devbox/
+.envrc.local
+result
+result-*
+
+# 3. Caches et artefacts Python / Outils de qualité
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# 4. Fichiers système et éditeurs
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+*~
+.vscode/
+.idea/
