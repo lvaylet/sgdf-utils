@@ -96,7 +96,7 @@ class AttachedChild:
     registration_status: str
 
     def format_full_name(self) -> str:
-        """Retourne le nom complet de l'enfant sous la forme 'Prénom NOM'."""
+        """Retourne le nom complet de l'enfant sous la forme 'Prénom Nom'."""
         return " ".join(part for part in (self.first_name, self.last_name) if part)
 
 
@@ -211,7 +211,7 @@ class ParentContact:
 
     @property
     def children_names(self) -> str:
-        """Retourne la liste dédoublonnée des enfants ('Prénom NOM') séparée par ', '."""
+        """Retourne la liste dédoublonnée des enfants ('Prénom Nom') séparée par ', '."""
         labels: list[str] = []
         for child in self.children:
             label = child.format_full_name()
@@ -256,8 +256,15 @@ def clean_whitespace(value: str) -> str:
 
 
 def normalize_last_name(raw_last_name: str) -> str:
-    """Normalise un nom de famille intégralement en MAJUSCULES."""
-    return clean_whitespace(raw_last_name).upper()
+    """Normalise un nom de famille avec la première lettre de chaque partie en majuscule et le reste en minuscules."""
+    text = clean_whitespace(raw_last_name).lower()
+    if not text:
+        return ""
+    return re.sub(
+        r"(^|[\s\-'])([^\s\-'])",
+        lambda match: match.group(1) + match.group(2).upper(),
+        text,
+    )
 
 
 def normalize_first_name(raw_first_name: str) -> str:
