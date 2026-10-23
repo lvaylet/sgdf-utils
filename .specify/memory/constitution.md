@@ -1,13 +1,13 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 2.0.0
-- Modified principles:
-  - I. Usage Intégral du Français (NON-NÉGOCIABLE) → I. Code en Anglais et Documentation en Français (NON-NÉGOCIABLE)
+- Version change: 2.0.0 → 2.1.0
+- Modified principles: Aucun principe existant renommé
+- Added sections / principles:
+  - VI. Flux Git par Branche Dédiée et Pull Request (Squash and Merge)
 - Modified sections:
-  - Contraintes Techniques et Environnement (identifiants de code en anglais selon PEP 8, commentaires et README.md en français)
-  - Flux de Travail et Assurance Qualité (référence à README.md pour la documentation en français)
-  - Governance (mise à jour de la revue de conformité sur la répartition anglais/français)
-- Added sections: Aucune
+  - Contraintes Techniques et Environnement (ajout de Git et de la CLI GitHub `gh`)
+  - Flux de Travail et Assurance Qualité (ajout du flux de branche dédiée, commits, PR via `gh`, approbation manuelle et fusion Squash and Merge par défaut)
+  - Governance (vérification du respect du flux par branche et Pull Request)
 - Removed sections: Aucune
 - Follow-up TODOs: Aucun
 -->
@@ -76,11 +76,26 @@ complexe, architecture sur-dimensionnée ou dépendance superflue DOIT être év
 **Justification** : Le renouvellement régulier des équipes de bénévoles au sein d'un groupe scout
 impose que le code reste simple à comprendre, à diagnostiquer et à adapter d'une année sur l'autre.
 
+### VI. Flux Git par Branche Dédiée et Pull Request (Squash and Merge)
+
+Tout travail portant sur une fonctionnalité, un correctif ou une évolution DOIT être réalisé dans
+une branche Git dédiée créée à partir de la branche principale (`main`). Aucun commit direct sur la
+branche principale NE DOIT être effectué. L'agent et les contributeurs SONT AUTORISÉS à enregistrer
+des commits sur la branche dédiée, à pousser cette branche vers le dépôt distant et à créer une Pull
+Request à l'aide de la CLI GitHub (`gh`). En revanche, l'approbation et la fusion des Pull Requests
+DOIVENT demeurer exclusivement manuelles par le responsable du projet : l'agent NE DOIT JAMAIS
+approuver ni fusionner lui-même une Pull Request. Les Pull Requests DOIVENT utiliser la méthode de
+fusion **Squash and Merge** par défaut.
+
+**Justification** : Garantir une revue humaine systématique avant toute intégration dans `main` tout
+en automatisant la préparation des branches et des Pull Requests via `gh`, et conserver un
+historique Git propre, atomique et linéaire grâce au *Squash and Merge*.
+
 ## Contraintes Techniques et Environnement
 
 - **Prérequis de la machine de développement** : La machine hôte est présumée disposer de `direnv`,
   du gestionnaire de paquets Nix (avec les fonctionnalités expérimentales `nix-command` et `flakes`
-  activées) et/ou de Jetify Devbox.
+  activées) et/ou de Jetify Devbox, ainsi que de `git` et de la CLI GitHub `gh` authentifiée.
 - **Exécution et dépendances** : Python 3 et tous les paquets système ou bibliothèques Python
   nécessaires DOIVENT être déclarés dans les fichiers d'environnement (`flake.nix` et/ou
   `devbox.json`) et chargés automatiquement par `direnv` via `.envrc`.
@@ -93,6 +108,11 @@ impose que le code reste simple à comprendre, à diagnostiquer et à adapter d'
 
 ## Flux de Travail et Assurance Qualité
 
+- **Branches dédiées et Pull Requests (`gh`)** : Chaque fonctionnalité DOIT être développée sur sa
+  propre branche dédiée (ex. `NNN-nom-fonctionnalite`). Une fois les vérifications passées, les
+  modifications PEUVENT être validées dans un ou plusieurs commits sur cette branche et soumises via
+  une Pull Request créée avec `gh pr create`. Le responsable du projet approuve manuellement chaque
+  Pull Request et la fusionne selon la méthode **Squash and Merge** par défaut.
 - **Documentation en français** : Le fichier `README.md` et toute documentation associée DOIVENT
   fournir des instructions d'utilisation claires en français expliquant les fichiers d'entrée
   attendus, les commandes à exécuter et les résultats produits.
@@ -120,7 +140,8 @@ Cette constitution prévaut sur toute autre pratique implicite au sein du projet
   (`/speckit.plan`), toute liste de tâches (`/speckit.tasks`) et toute implémentation
   (`/speckit.implement`) DOIVENT vérifier leur conformité stricte avec les principes de cette
   constitution, en particulier la rédaction du code en anglais, le maintien des commentaires et de
-  la documentation (`README.md`) en français, et l'utilisation de l'environnement éphémère
-  Nix/Devbox activé par `direnv`.
+  la documentation (`README.md`) en français, l'utilisation de l'environnement éphémère Nix/Devbox
+  activé par `direnv`, et le respect du travail en branche dédiée avec ouverture de Pull Request via
+  `gh` pour approbation manuelle en mode **Squash and Merge**.
 
-**Version**: 2.0.0 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-10-16
+**Version**: 2.1.0 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-10-23
