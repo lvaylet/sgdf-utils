@@ -4,7 +4,7 @@
 Ce script lit en lecture seule l'onglet `ContactsParents` du classeur Excel
 `ContactsParents.xlsx` et génère le fichier `ContactParents.vcf` au format standard
 vCard 3.0 (UTF-8) directement importable dans Google Contacts. Chaque fiche contact
-contient l'identité du parent (`Prénom NOM`), ses numéros de téléphone (portable
+contient l'identité du parent (`Prénom Nom`), ses numéros de téléphone (portable
 principal, portable secondaire, fixe domicile), son adresse email, son adresse
 physique, une note structurée regroupant la liste des enfants avec leurs unités,
 le numéro d'adhérent (s'il existe) et d'éventuelles remarques, ainsi que les
@@ -71,7 +71,7 @@ class ParentContactCard:
 
     @property
     def formatted_full_name(self) -> str:
-        """Retourne le nom complet affiché dans Google Contacts sous la forme 'Prénom NOM'."""
+        """Retourne le nom complet affiché dans Google Contacts sous la forme 'Prénom Nom'."""
         return " ".join(part for part in (self.first_name, self.last_name) if part)
 
 
@@ -95,7 +95,7 @@ def escape_vcard_value(text: str) -> str:
 
 
 def format_children_with_units(children_names: str, children_units: str) -> str:
-    """Associe chaque enfant à son unité respective sous la forme `Prénom NOM (Unité)`."""
+    """Associe chaque enfant à son unité respective sous la forme `Prénom Nom (Unité)`."""
     children = [child.strip() for child in children_names.split(",") if child.strip()]
     if not children:
         return ""

@@ -66,13 +66,13 @@ Le script `extract_parent_contacts.py` lit en lecture seule le fichier d'export 
 
 ### Colonnes produites dans l'onglet `ContactsParents`
 
-1. **`Nom`** : Nom de famille du parent en MAJUSCULES.
+1. **`Nom`** : Nom de famille du parent en minuscules avec initiale(s) en majuscule.
 2. **`Prénom`** : Prénom du parent en minuscules avec initiale(s) en majuscule.
 3. **`Téléphone portable principal`** : Numéro de portable principal au format international sans espaces (ex. `+33687966975`). Si ce champ est vide mais qu'un numéro de portable valide (`+336` ou `+337`) figure dans le téléphone fixe ou le portable secondaire, il y est automatiquement déplacé (avec priorité au téléphone fixe).
 4. **`Téléphone portable secondaire`** : Numéro de portable secondaire au format international sans espaces.
 5. **`Téléphone fixe (domicile)`** : Numéro de téléphone fixe domicile au format international sans espaces (ex. `+33546123456`).
 6. **`Adresse email`** : Adresse courriel personnelle (ou dédiée SGDF en repli).
-7. **`Noms des enfants`** : Liste des enfants regroupés sous la forme `Prénom NOM`, séparés par des virgules (ex. `Lucas BERNARD, Chloé BERNARD`).
+7. **`Noms des enfants`** : Liste des enfants regroupés sous la forme `Prénom Nom`, séparés par des virgules (ex. `Lucas Bernard, Chloé Bernard`).
 8. **`Unités des enfants`** : Unités courtes des enfants dans le même ordre que les enfants eux-mêmes (`Farfadets`, `Louveteaux-Jeannettes`, `Scouts-Guides`, `Pionniers-Caravelles`, `Compagnons`).
 9. **`Rue`** : Lignes d'adresse postale (`Ligne 1`, `Ligne 2`, `Ligne 3`) non vides normalisées en casse titre (minuscules avec la première lettre de chaque mot en majuscule) et séparées par `, `.
 10. **`Code postal`** : Code postal de l'adresse du parent.
@@ -99,12 +99,12 @@ Le script `generate_contacts_vcf.py` lit en lecture seule l'onglet `ContactsPare
 
 ### Contenu de chaque fiche dans `ContactParents.vcf`
 
-- **Identité** : Nom structuré (`Nom`, `Prénom`) et nom complet affiché sous la forme `Prénom NOM`.
+- **Identité** : Nom structuré (`Nom`, `Prénom`) et nom complet affiché sous la forme `Prénom Nom`.
 - **Numéros de téléphone** : Téléphone portable principal (mobile préféré), téléphone portable secondaire et téléphone fixe domicile (lorsqu'ils sont renseignés).
 - **Adresse email** : Adresse courriel du parent (lorsqu'elle est renseignée).
 - **Adresse physique (`ADR`)** : Adresse postale structurée construite directement à partir des colonnes `Rue`, `Code postal` et `Ville` (lorsqu'elle est renseignée).
 - **Informations complémentaires (`NOTE`)** :
-  - `Enfants : Prénom NOM (Unité), ...`
+  - `Enfants : Prénom Nom (Unité), ...`
   - `Numéro d'adhérent : <numéro>` (uniquement s'il existe)
   - `Remarques : <remarques>` (uniquement si elles existent)
 - **Étiquettes Google Contacts (`CATEGORIES`)** : Tous les parents reçoivent automatiquement les deux étiquettes **`SGDF`** et **`La Rochelle`**.

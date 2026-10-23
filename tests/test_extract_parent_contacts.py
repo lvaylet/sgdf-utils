@@ -1,7 +1,7 @@
 """Tests unitaires et d'intégration pour `extract_parent_contacts.py`.
 
 Vérifie :
-1. La normalisation des noms (MAJUSCULES), prénoms (casse titre et composés) et unités courtes.
+1. La normalisation des noms et prénoms (casse titre et composés) et unités courtes.
 2. Le dédoublonnage des parents sur `(Nom, Prénom)` et le regroupement des fratries et unités.
 3. L'enrichissement du numéro d'adhérent et des remarques (rôles adultes comme Parent Animateur
    Farfadet, délégations et statuts d'enfants `Pré-inscrit(e)` / `Invité(e)`).
@@ -127,7 +127,12 @@ def write_synthetic_html_xls(file_path: Path, rows: list[list[str]]) -> None:
 
 def test_normalization_names_phones_units_and_addresses() -> None:
     """Vérifie la normalisation des noms, prénoms composés, téléphones, unités courtes et adresses."""
-    assert normalize_last_name("  dupont-moretti ") == "DUPONT-MORETTI"
+    assert normalize_last_name("  dupont-moretti ") == "Dupont-Moretti"
+    assert normalize_last_name("BERNARD") == "Bernard"
+    assert normalize_last_name("  le   goff ") == "Le Goff"
+    assert normalize_last_name("d'artagnan") == "D'Artagnan"
+    assert normalize_last_name("ÉVRARD") == "Évrard"
+    assert normalize_last_name("   ") == ""
     assert normalize_first_name("JEAN-BAPTISTE") == "Jean-Baptiste"
     assert normalize_first_name("  marie   claire ") == "Marie Claire"
     assert normalize_first_name("pierre-yves") == "Pierre-Yves"
@@ -251,16 +256,16 @@ def test_sibling_deduplication_enrichment_and_alphabetical_sorting() -> None:
 
     contacts = extract_and_group_parents(MINIMAL_TEST_COLUMNS, rows)
 
-    # 4 parents uniques attendus : BERNARD Élodie, BERNARD Marc, ÉVRARD Sophie, ZIMMER Paul
+    # 4 parents uniques attendus : Bernard Élodie, Bernard Marc, Évrard Sophie, Zimmer Paul
     assert [(c.last_name, c.first_name) for c in contacts] == [
-        ("BERNARD", "Élodie"),
-        ("BERNARD", "Marc"),
-        ("ÉVRARD", "Sophie"),
-        ("ZIMMER", "Paul"),
+        ("Bernard", "Élodie"),
+        ("Bernard", "Marc"),
+        ("Évrard", "Sophie"),
+        ("Zimmer", "Paul"),
     ]
 
     elodie = contacts[0]
-    assert elodie.children_names == "Lucas BERNARD, Chloé BERNARD"
+    assert elodie.children_names == "Lucas Bernard, Chloé Bernard"
     assert elodie.children_units == "Scouts-Guides, Farfadets"
     assert elodie.primary_mobile_phone == "+33601020304"
     assert elodie.landline_phone == "+33546001122"
@@ -271,9 +276,9 @@ def test_sibling_deduplication_enrichment_and_alphabetical_sorting() -> None:
     assert "Parent Animateur Farfadet" in elodie.notes
     assert "Enfant Lucas : Invité(e)" in elodie.notes
 
-    # Pour Sophie ÉVRARD dont l'enfant s'appelle Tom MARTIN (nom différent), le nom de l'enfant est précisé
+    # Pour Sophie Évrard dont l'enfant s'appelle Tom Martin (nom différent), le nom de l'enfant est précisé
     sophie = contacts[2]
-    assert sophie.children_names == "Tom MARTIN"
+    assert sophie.children_names == "Tom Martin"
     assert sophie.children_units == "Scouts-Guides"
     assert sophie.notes == "Enfant Tom : Pré-inscrit(e)"
 
@@ -362,10 +367,10 @@ def test_excel_workbook_generation_and_cli(tmp_path: Path) -> None:
     assert len(headers) == 13
 
     first_row = [cell.value for cell in parents_sheet[2]]
-    assert first_row[0] == "DUPONT"
+    assert first_row[0] == "Dupont"
     assert first_row[1] == "Jean-Pierre"
     assert first_row[2] == "+33612345678"  # Format international sans espaces
-    assert first_row[6] == "Léa DUPONT"
+    assert first_row[6] == "Léa Dupont"
     assert first_row[7] == "Farfadets"
     assert first_row[8] == "10 Rue Du Port, Bâtiment B"
     assert first_row[9] == "17000"
@@ -392,9 +397,11 @@ def test_real_individuals_export_integration(tmp_path: Path) -> None:
     keys = [(c.last_name, c.first_name) for c in contacts]
     assert len(keys) == len(set(keys)), "Aucun doublon (Nom, Prénom) ne doit subsister."
 
-    # 2. Vérification du formatage NOM (MAJUSCULES), Prénom (casse titre) et téléphones (+33 sans espaces)
+    # 2. Vérification du formatage Nom et Prénom (casse titre) et téléphones (+33 sans espaces)
     for contact in contacts:
-        assert contact.last_name == contact.last_name.upper()
+        assert contact.last_name == normalize_last_name(contact.last_name)
+        assert contact.last_name != contact.last_name.upper()
+        assert contact.first_name == normalize_first_name(contact.first_name)
         assert contact.first_name != contact.first_name.upper()
         assert contact.children_names != ""
         assert contact.children_units != ""

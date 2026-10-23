@@ -2,9 +2,9 @@
 
 Vérifie :
 1. L'échappement vCard 3.0 (RFC 2426) et l'affectation directe de l'adresse (`Rue`, `Code postal`, `Ville`).
-2. L'exportation complète des coordonnées des parents (`N`, `FN` au format `Prénom NOM`,
+2. L'exportation complète des coordonnées des parents (`N`, `FN` au format `Prénom Nom`,
    téléphones `CELL,VOICE,PREF`, `CELL,VOICE`, `HOME,VOICE`, `EMAIL` et `ADR`).
-3. La structuration du champ `NOTE` (`Enfants : Prénom NOM (Unité), ...`,
+3. La structuration du champ `NOTE` (`Enfants : Prénom Nom (Unité), ...`,
    `Numéro d'adhérent : ...` s'il existe, `Remarques : ...` si elles existent).
 4. La présence systématique des étiquettes `"SGDF"` et `"La Rochelle"`
    (`CATEGORIES:SGDF,La Rochelle`) sur 100 % des fiches.
@@ -66,7 +66,7 @@ def test_vcard_escaping_and_direct_address_assignment() -> None:
     assert escape_vcard_value(r"Chemin\Test") == r"Chemin\\Test"
 
     card_with_comma_in_street = ParentContactCard(
-        last_name="DUPONT",
+        last_name="Dupont",
         first_name="Jean",
         street="10 Rue Du Port, Bâtiment B",
         postal_code="17000",
@@ -80,42 +80,42 @@ def test_format_children_with_units_and_build_note() -> None:
     """Vérifie l'association enfants/unités et l'omission des rubriques vides dans `NOTE`."""
     assert (
         format_children_with_units(
-            "Lucas BERNARD, Chloé BERNARD",
+            "Lucas Bernard, Chloé Bernard",
             "Louveteaux-Jeannettes, Farfadets",
         )
-        == "Lucas BERNARD (Louveteaux-Jeannettes), Chloé BERNARD (Farfadets)"
+        == "Lucas Bernard (Louveteaux-Jeannettes), Chloé Bernard (Farfadets)"
     )
     assert (
-        format_children_with_units("Léo DUPONT, Emma DUPONT", "Scouts-Guides")
-        == "Léo DUPONT (Scouts-Guides), Emma DUPONT (Scouts-Guides)"
+        format_children_with_units("Léo Dupont, Emma Dupont", "Scouts-Guides")
+        == "Léo Dupont (Scouts-Guides), Emma Dupont (Scouts-Guides)"
     )
     assert format_children_with_units("", "") == ""
 
     # Cas 1 : Parent avec enfants, numéro d'adhérent et remarques
     full_card = ParentContactCard(
-        last_name="BERNARD",
+        last_name="Bernard",
         first_name="Élodie",
-        children_names="Lucas BERNARD, Chloé BERNARD",
+        children_names="Lucas Bernard, Chloé Bernard",
         children_units="Scouts-Guides, Farfadets",
         member_id="987654321",
         notes="Parent Animateur Farfadet ; Enfant Lucas : Invité(e)",
     )
     full_note = build_parent_note(full_card)
     assert full_note == (
-        "Enfants : Lucas BERNARD (Scouts-Guides), Chloé BERNARD (Farfadets)\n"
+        "Enfants : Lucas Bernard (Scouts-Guides), Chloé Bernard (Farfadets)\n"
         "Numéro d'adhérent : 987654321\n"
         "Remarques : Parent Animateur Farfadet ; Enfant Lucas : Invité(e)"
     )
 
     # Cas 2 : Parent sans numéro d'adhérent ni remarques -> seule la ligne Enfants est présente
     simple_card = ParentContactCard(
-        last_name="MARTIN",
+        last_name="Martin",
         first_name="Paul",
-        children_names="Tom MARTIN",
+        children_names="Tom Martin",
         children_units="Pionniers-Caravelles",
     )
     simple_note = build_parent_note(simple_card)
-    assert simple_note == "Enfants : Tom MARTIN (Pionniers-Caravelles)"
+    assert simple_note == "Enfants : Tom Martin (Pionniers-Caravelles)"
     assert "Numéro d'adhérent" not in simple_note
     assert "Remarques" not in simple_note
 
@@ -123,13 +123,13 @@ def test_format_children_with_units_and_build_note() -> None:
 def test_parent_vcard_serialization_complete_and_partial() -> None:
     """Vérifie la génération d'une entrée `VCARD` 3.0 complète et partielle."""
     full_card = ParentContactCard(
-        last_name="DUPONT",
+        last_name="Dupont",
         first_name="Jean-Pierre",
         primary_mobile_phone="+33612345678",
         secondary_mobile_phone="+33698765432",
         landline_phone="+33546123456",
         email_address="jean-pierre.dupont@example.fr",
-        children_names="Lucas DUPONT, Emma DUPONT",
+        children_names="Lucas Dupont, Emma Dupont",
         children_units="Farfadets, Louveteaux-Jeannettes",
         street="12 Rue Des Mouettes",
         postal_code="17000",
@@ -142,15 +142,15 @@ def test_parent_vcard_serialization_complete_and_partial() -> None:
 
     assert lines[0] == "BEGIN:VCARD"
     assert lines[1] == "VERSION:3.0"
-    assert "N:DUPONT;Jean-Pierre;;;" in lines
-    assert "FN:Jean-Pierre DUPONT" in lines
+    assert "N:Dupont;Jean-Pierre;;;" in lines
+    assert "FN:Jean-Pierre Dupont" in lines
     assert "TEL;TYPE=CELL,VOICE,PREF:+33612345678" in lines
     assert "TEL;TYPE=CELL,VOICE:+33698765432" in lines
     assert "TEL;TYPE=HOME,VOICE:+33546123456" in lines
     assert "EMAIL;TYPE=INTERNET,HOME:jean-pierre.dupont@example.fr" in lines
     assert "ADR;TYPE=HOME:;;12 Rue Des Mouettes;La Rochelle;;17000;" in lines
     assert (
-        r"NOTE:Enfants : Lucas DUPONT (Farfadets)\, Emma DUPONT (Louveteaux-Jeannettes)"
+        r"NOTE:Enfants : Lucas Dupont (Farfadets)\, Emma Dupont (Louveteaux-Jeannettes)"
         r"\nNuméro d'adhérent : 123456789\nRemarques : Parent Animateur Farfadet"
         in lines
     )
@@ -159,20 +159,20 @@ def test_parent_vcard_serialization_complete_and_partial() -> None:
 
     # Fiche avec coordonnées partielles : pas de portable secondaire, fixe, email ni adresse
     partial_card = ParentContactCard(
-        last_name="DURAND",
+        last_name="Durand",
         first_name="Marie",
         primary_mobile_phone="+33600112233",
-        children_names="Léo DURAND",
+        children_names="Léo Durand",
         children_units="Compagnons",
     )
     partial_vcard = format_parent_vcard(partial_card)
-    assert "FN:Marie DURAND" in partial_vcard
+    assert "FN:Marie Durand" in partial_vcard
     assert "TEL;TYPE=CELL,VOICE,PREF:+33600112233" in partial_vcard
     assert "TEL;TYPE=CELL,VOICE:" not in partial_vcard
     assert "TEL;TYPE=HOME,VOICE:" not in partial_vcard
     assert "EMAIL" not in partial_vcard
     assert "ADR" not in partial_vcard
-    assert "NOTE:Enfants : Léo DURAND (Compagnons)" in partial_vcard
+    assert "NOTE:Enfants : Léo Durand (Compagnons)" in partial_vcard
     assert "CATEGORIES:SGDF,La Rochelle" in partial_vcard
 
 
@@ -217,13 +217,13 @@ def test_vcf_file_generation_via_cli(tmp_path: Path) -> None:
         input_path,
         [
             [
-                "BERNARD",
+                "Bernard",
                 "Élodie",
                 "+33601020304",
                 "",
                 "+33546001122",
                 "elodie.bernard@example.fr",
-                "Lucas BERNARD, Chloé BERNARD",
+                "Lucas Bernard, Chloé Bernard",
                 "Scouts-Guides, Farfadets",
                 "5 Avenue Coligny",
                 "17000",
@@ -232,13 +232,13 @@ def test_vcf_file_generation_via_cli(tmp_path: Path) -> None:
                 "Parent Animateur Farfadet ; Enfant Lucas : Invité(e)",
             ],
             [
-                "MARTIN",
+                "Martin",
                 "Paul",
                 "+33699887766",
                 "",
                 "",
                 "",
-                "Tom MARTIN",
+                "Tom Martin",
                 "Pionniers-Caravelles",
                 "",
                 "",
@@ -259,8 +259,8 @@ def test_vcf_file_generation_via_cli(tmp_path: Path) -> None:
     assert content.count("BEGIN:VCARD") == 2
     assert content.count("END:VCARD") == 2
     assert content.count("CATEGORIES:SGDF,La Rochelle") == 2
-    assert "FN:Élodie BERNARD" in content
-    assert "FN:Paul MARTIN" in content
+    assert "FN:Élodie Bernard" in content
+    assert "FN:Paul Martin" in content
 
 
 def test_real_contacts_parents_xlsx_integration(tmp_path: Path) -> None:
@@ -294,7 +294,7 @@ def test_real_contacts_parents_xlsx_integration(tmp_path: Path) -> None:
 
     # 2. Vérifier la cohérence des champs sur chaque fiche
     for card in cards:
-        assert card.last_name == card.last_name.upper()
+        assert card.last_name != card.last_name.upper()
         assert card.formatted_full_name == f"{card.first_name} {card.last_name}"
         assert card.categories == ("SGDF", "La Rochelle")
         assert card.children_names != ""
