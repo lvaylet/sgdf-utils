@@ -31,6 +31,10 @@ REQUIRED_PYTHON_MODULES = (
     "openpyxl",
     "sqlmodel",
     "sqlalchemy",
+    "fastapi",
+    "uvicorn",
+    "python_multipart",
+    "httpx",
     "pytest",
 )
 
@@ -42,6 +46,10 @@ EXPECTED_NIX_PACKAGES = (
     "openpyxl",
     "sqlmodel",
     "sqlalchemy",
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+    "httpx",
     "pytest",
     "ruff",
 )
