@@ -122,7 +122,15 @@ python3 generate_contacts_vcf.py --input ContactsParents.xlsx --output ContactPa
 python3 generate_contacts_vcf.py --help
 ```
 
-## 5. Vérification et tests
+## 5. Architecture modulaire du package `sgdf_contacts`
+
+La logique métier et technique est mutualisée dans le package Python `sgdf_contacts/` afin d'éliminer toute duplication entre les scripts CLI (`extract_parent_contacts.py` et `generate_contacts_vcf.py`) et de permettre une utilisation directe en mémoire :
+
+- **`sgdf_contacts/domain/`** : Cœur métier pur (sans dépendance externe) regroupant les entités (`ParentContact` avec la propriété `waha_chat_id`, `AttachedChild`, `AdultGroupProfile`, `ParentContactCard`), les constantes partagées (`PARENT_CONTACTS_HEADERS`, `ADULT_ROLE_LABELS`, `DEFAULT_CATEGORIES`), les exceptions métier et les fonctions pures de normalisation et de tri.
+- **`sgdf_contacts/parsers/`** : Lecture de l'export `ExportIndividus.xls` (`read_individuals_export_table`, acceptant un `Path` ou un flux `bytes`/`io.BytesIO` en mémoire), extraction/dédoublonnage (`extract_and_group_parents`) et lecture du classeur `ContactsParents.xlsx` (`read_parent_contacts_excel`).
+- **`sgdf_contacts/exporters/`** : Génération du classeur Excel (`write_parent_contacts_workbook`, sur disque `Path` ou en mémoire `io.BytesIO`) et génération vCard 3.0 (`format_parent_vcard`, `format_vcf_content`, `write_vcf_file`, directement depuis `list[ParentContact]` ou `list[ParentContactCard]`).
+
+## 6. Vérification et tests
 
 Une fois dans le dossier (avec l'environnement actif), vous pouvez vérifier le bon fonctionnement de l'installation et la conformité du code :
 
@@ -134,7 +142,7 @@ pytest -v
 ruff check .
 ```
 
-## 6. Confidentialité des données (RGPD)
+## 7. Confidentialité des données (RGPD)
 
 Conformément à la constitution du projet :
 
