@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, BinaryIO
 
-from sqlalchemy import delete, or_
+from sqlalchemy import delete, or_, text
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, select
 
@@ -433,19 +433,15 @@ class ParentContactRepository:
             )
             return session.exec(statement).first()
 
-    def list_active_parents(self) -> list[ParentContact]:
-        """Retourne tous les parents actifs (`is_active=True`) triés selon l'ordre alphabétique français."""
-        return self.filter_parents(include_inactive=False)
-
-    def filter_parents(
+    def list_parent_records(
         self,
         *,
         short_unit: str | None = None,
         registration_status: str | None = None,
         has_valid_mobile: bool | None = None,
         include_inactive: bool = False,
-    ) -> list[ParentContact]:
-        """Filtre les parents selon l'unité d'enfant, le statut d'inscription et/ou la présence d'un portable valide."""
+    ) -> list[tuple[ParentRecord, list[AttachedChild]]]:
+        """Retourne les enregistrements `ParentRecord` et leurs enfants ordonnés selon les filtres fournis."""
         normalized_unit = normalize_short_unit(short_unit) if short_unit else None
         normalized_status = (
             registration_status.strip() if registration_status is not None else None
@@ -460,16 +456,21 @@ class ParentContactRepository:
             parent_ids = [r.id for r in records if r.id is not None]
             children_map = self._load_ordered_children_map(session, parent_ids)
 
-            results: list[ParentContact] = []
+            results: list[tuple[ParentRecord, list[AttachedChild]]] = []
             for record in records:
                 if record.id is None:
                     continue
                 domain_children = children_map.get(record.id, [])
 
-                if normalized_unit is not None and not any(
-                    normalize_short_unit(child.short_unit) == normalized_unit
-                    or child.short_unit.casefold() == short_unit.strip().casefold()
-                    for child in domain_children
+                if (
+                    normalized_unit is not None
+                    and short_unit is not None
+                    and not any(
+                        normalize_short_unit(child.short_unit) == normalized_unit
+                        or child.short_unit.casefold()
+                        == short_unit.strip().casefold()
+                        for child in domain_children
+                    )
                 ):
                     continue
 
@@ -487,28 +488,74 @@ class ParentContactRepository:
                     if has_mobile != has_valid_mobile:
                         continue
 
-                results.append(record.to_domain(domain_children))
+                results.append((record, domain_children))
 
-        results.sort(key=parent_sort_key)
+        results.sort(key=lambda item: parent_sort_key(item[0].to_domain(item[1])))
         return results
 
-    def find_by_phone(
+    def list_active_parents(self) -> list[ParentContact]:
+        """Retourne tous les parents actifs (`is_active=True`) triés selon l'ordre alphabétique français."""
+        return self.filter_parents(include_inactive=False)
+
+    def filter_parents(
+        self,
+        *,
+        short_unit: str | None = None,
+        registration_status: str | None = None,
+        has_valid_mobile: bool | None = None,
+        include_inactive: bool = False,
+    ) -> list[ParentContact]:
+        """Filtre les parents selon l'unité d'enfant, le statut d'inscription et/ou la présence d'un portable valide."""
+        records_with_children = self.list_parent_records(
+            short_unit=short_unit,
+            registration_status=registration_status,
+            has_valid_mobile=has_valid_mobile,
+            include_inactive=include_inactive,
+        )
+        return [
+            record.to_domain(children) for record, children in records_with_children
+        ]
+
+    @staticmethod
+    def _build_candidate_phones(phone: str) -> set[str]:
+        """Construit l'ensemble des numéros candidats à partir d'un numéro brut, E.164 ou d'un identifiant WAHA."""
+        cleaned_input = phone.strip()
+        if not cleaned_input:
+            return set()
+
+        for suffix in ("@c.us", "@s.whatsapp.net", "@g.us"):
+            if cleaned_input.lower().endswith(suffix):
+                cleaned_input = cleaned_input[: -len(suffix)].strip()
+                break
+
+        if not cleaned_input:
+            return set()
+
+        candidate_phones = {cleaned_input}
+        normalized = normalize_phone(cleaned_input)
+        if normalized:
+            candidate_phones.add(normalized)
+
+        digits_only = "".join(ch for ch in cleaned_input if ch.isdigit())
+        if digits_only.startswith("33") and len(digits_only) == 11:
+            plus_prefixed = f"+{digits_only}"
+            candidate_phones.add(plus_prefixed)
+            norm_plus = normalize_phone(plus_prefixed)
+            if norm_plus:
+                candidate_phones.add(norm_plus)
+
+        return candidate_phones
+
+    def find_record_by_phone(
         self,
         phone: str,
         *,
         include_inactive: bool = False,
-    ) -> ParentContact | None:
-        """Recherche un parent par numéro de téléphone (`primary_mobile_phone`, `secondary_mobile_phone`, `landline_phone`)."""
-        cleaned_input = phone.strip()
-        if not cleaned_input:
+    ) -> tuple[ParentRecord, list[AttachedChild]] | None:
+        """Recherche un `ParentRecord` et ses enfants par téléphone (`+336...`, `06...`, `336...` ou `336...@c.us`)."""
+        candidate_phones = self._build_candidate_phones(phone)
+        if not candidate_phones:
             return None
-
-        normalized = normalize_phone(cleaned_input)
-        candidate_phones = {cleaned_input}
-        if normalized:
-            candidate_phones.add(normalized)
-        if cleaned_input.isdigit() and cleaned_input.startswith("33"):
-            candidate_phones.add(f"+{cleaned_input}")
 
         with Session(self.engine) as session:
             statement = select(ParentRecord).where(
@@ -527,25 +574,85 @@ class ParentContactRepository:
 
             parent_ids = [r.id for r in records if r.id is not None]
             children_map = self._load_ordered_children_map(session, parent_ids)
-            domains = [
-                r.to_domain(children_map.get(r.id, []))
+            pairs = [
+                (r, children_map.get(r.id, []))
                 for r in records
                 if r.id is not None
             ]
-            domains.sort(key=parent_sort_key)
-            return domains[0] if domains else None
+            pairs.sort(key=lambda item: parent_sort_key(item[0].to_domain(item[1])))
+            return pairs[0] if pairs else None
+
+    def find_by_phone(
+        self,
+        phone: str,
+        *,
+        include_inactive: bool = False,
+    ) -> ParentContact | None:
+        """Recherche un parent par numéro de téléphone (`primary_mobile_phone`, `secondary_mobile_phone`, `landline_phone`)."""
+        found = self.find_record_by_phone(phone, include_inactive=include_inactive)
+        if found is None:
+            return None
+        record, children = found
+        return record.to_domain(children)
+
+    def get_parent_record_by_id(
+        self,
+        parent_id: int,
+    ) -> tuple[ParentRecord, list[AttachedChild]] | None:
+        """Retourne un `ParentRecord` et ses enfants ordonnés à partir de son identifiant `parent_id`."""
+        with Session(self.engine) as session:
+            record = session.get(ParentRecord, parent_id)
+            if record is None or record.id is None:
+                return None
+            children_map = self._load_ordered_children_map(session, [record.id])
+            return record, children_map.get(record.id, [])
+
+    def update_parent_metadata(
+        self,
+        parent_id: int,
+        *,
+        has_whatsapp: bool | None,
+    ) -> tuple[ParentRecord, list[AttachedChild]] | None:
+        """Met à jour les métadonnées d'intégration (`has_whatsapp`) d'un parent identifié par `parent_id`."""
+        with Session(self.engine) as session:
+            record = session.get(ParentRecord, parent_id)
+            if record is None or record.id is None:
+                return None
+            record.has_whatsapp = has_whatsapp
+            record.updated_at = utc_now()
+            session.add(record)
+            session.commit()
+            session.refresh(record)
+            assert record.id is not None
+            children_map = self._load_ordered_children_map(session, [record.id])
+            return record, children_map.get(record.id, [])
+
+    def check_health(self) -> bool:
+        """Vérifie que la connexion SQLite est opérationnelle via une requête `SELECT 1`."""
+        with Session(self.engine) as session:
+            result = session.exec(text("SELECT 1")).first()
+            return result is not None
 
     def export_vcf(
         self,
         output_path: Path | None = None,
         *,
         categories: tuple[str, ...] = DEFAULT_CATEGORIES,
+        short_unit: str | None = None,
+        registration_status: str | None = None,
+        has_valid_mobile: bool | None = None,
+        include_inactive: bool = False,
     ) -> str:
-        """Régénère `ContactParents.vcf` directement depuis les parents actifs stockés en base SQLite."""
-        active_parents = self.list_active_parents()
+        """Régénère `ContactParents.vcf` directement depuis les parents stockés en base SQLite."""
+        parents = self.filter_parents(
+            short_unit=short_unit,
+            registration_status=registration_status,
+            has_valid_mobile=has_valid_mobile,
+            include_inactive=include_inactive,
+        )
         cards = [
             parent.to_contact_card(categories=categories)
-            for parent in active_parents
+            for parent in parents
         ]
         vcf_content = format_vcf_content(cards)
         if output_path is not None:
@@ -558,12 +665,21 @@ class ParentContactRepository:
         *,
         source_headers: list[str] | None = None,
         source_rows: list[list[str]] | None = None,
+        short_unit: str | None = None,
+        registration_status: str | None = None,
+        has_valid_mobile: bool | None = None,
+        include_inactive: bool = False,
     ) -> bytes:
-        """Régénère `ContactsParents.xlsx` directement depuis les parents actifs stockés en base SQLite."""
-        active_parents = self.list_active_parents()
+        """Régénère `ContactsParents.xlsx` directement depuis les parents stockés en base SQLite."""
+        parents = self.filter_parents(
+            short_unit=short_unit,
+            registration_status=registration_status,
+            has_valid_mobile=has_valid_mobile,
+            include_inactive=include_inactive,
+        )
         return write_parent_contacts_workbook(
             output_path=output_path,
             source_headers=source_headers,
             source_rows=source_rows,
-            parent_contacts=active_parents,
+            parent_contacts=parents,
         )

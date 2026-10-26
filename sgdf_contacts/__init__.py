@@ -31,6 +31,11 @@ from sgdf_contacts.domain import (
     parent_sort_key,
     strip_accents,
 )
+from sgdf_contacts.entrypoints import (
+    ApiSettings,
+    app,
+    create_app,
+)
 from sgdf_contacts.exporters import (
     auto_fit_column_widths,
     build_parent_note,
@@ -70,6 +75,7 @@ __all__ = [
     "PARENT_CONTACTS_HEADERS",
     "SOURCE_SHEET_NAME",
     "AdultGroupProfile",
+    "ApiSettings",
     "AttachedChild",
     "ChildRecord",
     "ContactExtractionError",
@@ -82,11 +88,13 @@ __all__ = [
     "ParentRecord",
     "ParentUpdateDiff",
     "VcfGenerationError",
+    "app",
     "auto_fit_column_widths",
     "build_adult_profiles_index",
     "build_parent_note",
     "clean_text",
     "clean_whitespace",
+    "create_app",
     "create_db_engine",
     "escape_vcard_value",
     "extract_and_group_parents",
