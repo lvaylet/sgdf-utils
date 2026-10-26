@@ -17,6 +17,7 @@ Les deux options fournissent exactement le même environnement Python 3 isolé (
 - **`pandas`** : Manipulation et croisement des tableaux d'adhérents et de parents
 - **`beautifulsoup4`** et **`lxml`** : Analyse des exports SGDF au format HTML portant l'extension `.xls` (ex. `ExportIndividus.xls`)
 - **`xlrd`** et **`openpyxl`** : Lecture et génération de classeurs Excel `.xls` et `.xlsx`
+- **`sqlmodel`** et **`sqlalchemy`** : Persistance relationnelle locale SQLite (en mode WAL, compatible PostgreSQL) et calcul de différentiel d'import
 - **`pytest`** : Exécution des tests automatisés
 - **`ruff`** : Vérification de la qualité et du style du code Python
 
@@ -129,6 +130,10 @@ La logique métier et technique est mutualisée dans le package Python `sgdf_con
 - **`sgdf_contacts/domain/`** : Cœur métier pur (sans dépendance externe) regroupant les entités (`ParentContact` avec la propriété `waha_chat_id`, `AttachedChild`, `AdultGroupProfile`, `ParentContactCard`), les constantes partagées (`PARENT_CONTACTS_HEADERS`, `ADULT_ROLE_LABELS`, `DEFAULT_CATEGORIES`), les exceptions métier et les fonctions pures de normalisation et de tri.
 - **`sgdf_contacts/parsers/`** : Lecture de l'export `ExportIndividus.xls` (`read_individuals_export_table`, acceptant un `Path` ou un flux `bytes`/`io.BytesIO` en mémoire), extraction/dédoublonnage (`extract_and_group_parents`) et lecture du classeur `ContactsParents.xlsx` (`read_parent_contacts_excel`).
 - **`sgdf_contacts/exporters/`** : Génération du classeur Excel (`write_parent_contacts_workbook`, sur disque `Path` ou en mémoire `io.BytesIO`) et génération vCard 3.0 (`format_parent_vcard`, `format_vcf_content`, `write_vcf_file`, directement depuis `list[ParentContact]` ou `list[ParentContactCard]`).
+- **`sgdf_contacts/persistence/`** : Persistance locale SQLite en mode WAL (`create_db_engine`, `init_db`, tables `parents`, `children`, `parent_child_links` via `SQLModel`) et dépôt `ParentContactRepository` offrant :
+  - l'import transactionnel idempotent (`sync_parents`, `import_individuals_xls`) avec calcul automatique de différentiel (`ImportDiffReport` : `created`, `updated` avec détail des champs modifiés via `FieldChange`, `unchanged`, `deactivated` sans perte des métadonnées externes comme `has_whatsapp`),
+  - le requêtage et le filtrage (`list_active_parents`, `filter_parents` par unité courte, statut d'inscription ou présence d'un portable valide, `find_by_phone`),
+  - la régénération directe de `ContactParents.vcf` (`export_vcf`) et de `ContactsParents.xlsx` (`export_excel`) depuis la base SQLite sans relire `ExportIndividus.xls`.
 
 ## 6. Vérification et tests
 
@@ -146,5 +151,5 @@ ruff check .
 
 Conformément à la constitution du projet :
 
-- Les fichiers d'export et de sortie (`ExportIndividus.xls`, `ContactsParents.xlsx`, `ContactParents.vcf`, `*.xls`, `*.xlsx`, `*.csv`, `*.vcf`) contiennent des données personnelles et sont **exclus du suivi Git** via `.gitignore`.
+- Les fichiers d'export, de sortie et de bases de données locales (`ExportIndividus.xls`, `ContactsParents.xlsx`, `ContactParents.vcf`, `*.xls`, `*.xlsx`, `*.csv`, `*.vcf`, `*.db`, `*.sqlite`, `*.sqlite3`) contiennent des données personnelles et sont **exclus du suivi Git** via `.gitignore`.
 - Les scripts traitent toujours les fichiers d'entrée en **lecture seule**.
