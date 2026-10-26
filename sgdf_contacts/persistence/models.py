@@ -6,6 +6,7 @@ from pathlib import Path
 
 from sqlalchemy import UniqueConstraint, event
 from sqlalchemy.engine import Engine
+from sqlalchemy.pool import StaticPool
 from sqlmodel import Field, Relationship, SQLModel, create_engine
 
 from sgdf_contacts.domain import AttachedChild, ParentContact
@@ -166,7 +167,23 @@ def create_db_engine(
             resolved_path.parent.mkdir(parents=True, exist_ok=True)
             url = f"sqlite:///{resolved_path}"
 
-    engine = create_engine(url, echo=echo)
+    if url.startswith("sqlite"):
+        is_memory = url in ("sqlite://", "sqlite:///:memory:") or ":memory:" in url
+        if is_memory:
+            engine = create_engine(
+                url,
+                echo=echo,
+                connect_args={"check_same_thread": False},
+                poolclass=StaticPool,
+            )
+        else:
+            engine = create_engine(
+                url,
+                echo=echo,
+                connect_args={"check_same_thread": False},
+            )
+    else:
+        engine = create_engine(url, echo=echo)
     _configure_sqlite_pragmas(engine)
     return engine
 

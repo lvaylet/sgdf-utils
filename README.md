@@ -18,6 +18,7 @@ Les deux options fournissent exactement le même environnement Python 3 isolé (
 - **`beautifulsoup4`** et **`lxml`** : Analyse des exports SGDF au format HTML portant l'extension `.xls` (ex. `ExportIndividus.xls`)
 - **`xlrd`** et **`openpyxl`** : Lecture et génération de classeurs Excel `.xls` et `.xlsx`
 - **`sqlmodel`** et **`sqlalchemy`** : Persistance relationnelle locale SQLite (en mode WAL, compatible PostgreSQL) et calcul de différentiel d'import
+- **`fastapi`**, **`uvicorn`**, **`python-multipart`** et **`httpx`** : Exposition de l'API HTTP REST avec spécification OpenAPI automatique pour **n8n** et **WAHA**
 - **`pytest`** : Exécution des tests automatisés
 - **`ruff`** : Vérification de la qualité et du style du code Python
 
@@ -134,8 +135,40 @@ La logique métier et technique est mutualisée dans le package Python `sgdf_con
   - l'import transactionnel idempotent (`sync_parents`, `import_individuals_xls`) avec calcul automatique de différentiel (`ImportDiffReport` : `created`, `updated` avec détail des champs modifiés via `FieldChange`, `unchanged`, `deactivated` sans perte des métadonnées externes comme `has_whatsapp`),
   - le requêtage et le filtrage (`list_active_parents`, `filter_parents` par unité courte, statut d'inscription ou présence d'un portable valide, `find_by_phone`),
   - la régénération directe de `ContactParents.vcf` (`export_vcf`) et de `ContactsParents.xlsx` (`export_excel`) depuis la base SQLite sans relire `ExportIndividus.xls`.
+- **`sgdf_contacts/entrypoints/api.py`** : API HTTP REST (`FastAPI`) dotée d'une spécification OpenAPI automatique (`/docs`, `/openapi.json`) pour l'intégration avec **n8n** et **WAHA**.
 
-## 6. Vérification et tests
+## 6. API HTTP REST pour n8n et WAHA (`sgdf_contacts.entrypoints.api`)
+
+Le module `sgdf_contacts/entrypoints/api.py` expose le référentiel SQLite des parents via HTTP REST.
+
+### Configuration par variables d'environnement
+
+- **`SGDF_DATABASE_URL`** : Chemin ou URL SQLAlchemy de la base SQLite (par défaut `sqlite:///sgdf_contacts.db`).
+- **`SGDF_API_KEY`** : Clé secrète optionnelle activant l'authentification par en-tête `X-API-Key` sur toutes les routes `/api/v1/*` dès qu'elle est définie.
+- **`SGDF_HOST`** : Adresse d'écoute du serveur (par défaut `127.0.0.1`).
+- **`SGDF_PORT`** : Port d'écoute du serveur (par défaut `8000`).
+
+### Démarrage du serveur
+
+```bash
+# Démarrage avec uvicorn
+uvicorn sgdf_contacts.entrypoints.api:app --host 0.0.0.0 --port 8000
+
+# Ou via le module Python (utilise SGDF_HOST et SGDF_PORT)
+python3 -m sgdf_contacts.entrypoints.api
+```
+
+### Endpoints exposés
+
+- **`GET /health`** : Vérification publique de l'état du service et de la connexion SQLite.
+- **`POST /api/v1/imports/intranet`** : Téléversement multipart (`file`) d'un fichier `ExportIndividus.xls`, synchronisation transactionnelle en base et retour du rapport JSON (`total_parents`, `created`, `updated`, `unchanged`, `deactivated` et `changes`).
+- **`GET /api/v1/parents`** : Liste filtrée et paginée des parents (`?unit=...`, `?has_mobile=true`, `?registration_status=...`, `?active_only=true`, `?limit=...`, `?offset=...`).
+- **`GET /api/v1/units/{unit_name}/whatsapp-recipients`** : Destinataires WhatsApp actifs d'une unité disposant d'un numéro mobile valide, formatés pour **WAHA** (`waha_chat_id` au format `33687966975@c.us`, `phone_e164`, `first_name`, `last_name`, `children`).
+- **`GET /api/v1/parents/by-phone/{phone}`** : Recherche d'un parent à partir d'un numéro au format E.164 (`+336...`), national (`06...`), international sans `+` (`336...`) ou identifiant WAHA (`336...@c.us`).
+- **`PATCH /api/v1/parents/{parent_id}`** : Mise à jour partielle des métadonnées d'intégration (ex. `{"has_whatsapp": true}`).
+- **`GET /api/v1/exports/vcf`** et **`GET /api/v1/exports/xlsx`** : Téléchargement à la volée des fichiers `ContactParents.vcf` et `ContactsParents.xlsx` générés depuis la base (avec filtres optionnels).
+
+## 7. Vérification et tests
 
 Une fois dans le dossier (avec l'environnement actif), vous pouvez vérifier le bon fonctionnement de l'installation et la conformité du code :
 
@@ -147,7 +180,7 @@ pytest -v
 ruff check .
 ```
 
-## 7. Confidentialité des données (RGPD)
+## 8. Confidentialité des données (RGPD)
 
 Conformément à la constitution du projet :
 

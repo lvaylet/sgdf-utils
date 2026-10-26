@@ -108,27 +108,38 @@ def normalize_short_unit(structure_name: str, role_code: str = "") -> str:
     code = clean_whitespace(role_code)
     upper_structure = strip_accents(clean_whitespace(structure_name)).upper()
 
-    if code in ("170", "270", "271") or "FARFADET" in upper_structure:
+    if (
+        code in ("170", "270", "271")
+        or upper_structure == "FARFA"
+        or "FARFADET" in upper_structure
+    ):
         return "Farfadets"
     if (
         code in ("110", "210", "213")
+        or upper_structure == "LJ"
         or "LOUVETEAU" in upper_structure
         or "JEANNETTE" in upper_structure
     ):
         return "Louveteaux-Jeannettes"
     if (
         code in ("120", "220", "223")
+        or upper_structure == "SG"
         or "SCOUTS GUIDES" in upper_structure
         or "SCOUT" in upper_structure
     ):
         return "Scouts-Guides"
     if (
         code in ("130", "230", "233")
+        or upper_structure in ("PC", "PIOK")
         or "PIONNIER" in upper_structure
         or "CARAVELLE" in upper_structure
     ):
         return "Pionniers-Caravelles"
-    if code in ("140", "240", "243") or "COMPAGNON" in upper_structure:
+    if (
+        code in ("140", "240", "243")
+        or upper_structure == "COMPA"
+        or "COMPAGNON" in upper_structure
+    ):
         return "Compagnons"
     return clean_whitespace(structure_name)
 

@@ -9,6 +9,10 @@
     "python3Packages.openpyxl@latest",
     "python3Packages.sqlmodel@latest",
     "python3Packages.sqlalchemy@latest",
+    "python3Packages.fastapi@latest",
+    "python3Packages.uvicorn@latest",
+    "python3Packages.python-multipart@latest",
+    "python3Packages.httpx@latest",
     "python3Packages.pytest@latest",
     "ruff@latest"
   ],
@@ -17,12 +21,12 @@
       "echo '=================================================================='",
       "echo ' Environnement éphémère SGDF La Rochelle actif (option : devbox.json)'",
       "echo \" Interpréteur : $(python3 --version)\"",
-      "echo ' Outils prêts : pandas, beautifulsoup4, lxml, xlrd, openpyxl, sqlmodel, sqlalchemy, pytest, ruff'",
+      "echo ' Outils prêts : pandas, beautifulsoup4, lxml, xlrd, openpyxl, sqlmodel, sqlalchemy, fastapi, uvicorn, python-multipart, httpx, pytest, ruff'",
       "echo '=================================================================='"
     ],
     "scripts": {
       "check_environment": [
-        "python3 -c \"import pandas, bs4, lxml, xlrd, openpyxl, sqlmodel, sqlalchemy, pytest; print('Vérification réussie : tous les paquets SGDF La Rochelle sont disponibles.')\""
+        "python3 -c \"import pandas, bs4, lxml, xlrd, openpyxl, sqlmodel, sqlalchemy, fastapi, uvicorn, python_multipart, httpx, pytest; print('Vérification réussie : tous les paquets SGDF La Rochelle sont disponibles.')\""
       ],
       "test": [
         "pytest"
