@@ -29,6 +29,8 @@ REQUIRED_PYTHON_MODULES = (
     "lxml",
     "xlrd",
     "openpyxl",
+    "sqlmodel",
+    "sqlalchemy",
     "pytest",
 )
 
@@ -38,6 +40,8 @@ EXPECTED_NIX_PACKAGES = (
     "lxml",
     "xlrd",
     "openpyxl",
+    "sqlmodel",
+    "sqlalchemy",
     "pytest",
     "ruff",
 )
@@ -230,6 +234,7 @@ def test_gitignore_data_protection() -> None:
         "*.xls",
         "*.xlsx",
         "*.csv",
+        "*.db",
         "ExportIndividus*",
         ".direnv/",
         ".devbox/",

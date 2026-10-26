@@ -27,6 +27,8 @@
             lxml
             xlrd
             openpyxl
+            sqlmodel
+            sqlalchemy
             pytest
           ]);
         in
@@ -41,7 +43,7 @@
               echo "=================================================================="
               echo " Environnement éphémère SGDF La Rochelle actif (option : flake.nix)"
               echo " Interpréteur : $(python3 --version)"
-              echo " Outils prêts : pandas, beautifulsoup4, lxml, xlrd, openpyxl, pytest, ruff"
+              echo " Outils prêts : pandas, beautifulsoup4, lxml, xlrd, openpyxl, sqlmodel, sqlalchemy, pytest, ruff"
               echo "=================================================================="
             '';
           };
