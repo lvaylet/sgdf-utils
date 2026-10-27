@@ -35,6 +35,11 @@ from sgdf_contacts.entrypoints import (
     ApiSettings,
     app,
     create_app,
+    run_extract_cli,
+    run_extraction,
+    run_server,
+    run_vcf_cli,
+    run_vcf_generation,
 )
 from sgdf_contacts.exporters import (
     auto_fit_column_widths,
@@ -114,6 +119,11 @@ __all__ = [
     "parent_sort_key",
     "read_individuals_export_table",
     "read_parent_contacts_excel",
+    "run_extract_cli",
+    "run_extraction",
+    "run_server",
+    "run_vcf_cli",
+    "run_vcf_generation",
     "strip_accents",
     "to_contact_card",
     "write_parent_contacts_workbook",

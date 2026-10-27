@@ -17,6 +17,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -272,3 +273,51 @@ def test_individuals_export_read_only() -> None:
     assert digest_before == digest_after, (
         "L'intégrité du fichier `ExportIndividus.xls` ne doit jamais être modifiée."
     )
+
+
+def test_pyproject_toml_and_cli_entrypoints() -> None:
+    """Vérifie que `pyproject.toml` déclare `sgdf-contacts` et ses 3 exécutables CLI."""
+    pyproject_path = PROJECT_ROOT / "pyproject.toml"
+    assert pyproject_path.is_file(), "Le fichier `pyproject.toml` doit exister à la racine."
+
+    pyproject_data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+    project_section = pyproject_data.get("project", {})
+    assert project_section.get("name") == "sgdf-contacts"
+
+    scripts = project_section.get("scripts", {})
+    assert scripts.get("sgdf-extract") == "sgdf_contacts.entrypoints.cli_extract:main"
+    assert scripts.get("sgdf-vcf") == "sgdf_contacts.entrypoints.cli_vcf:main"
+    assert scripts.get("sgdf-api") == "sgdf_contacts.entrypoints.api:run_server"
+
+    from sgdf_contacts.entrypoints import run_extract_cli, run_server, run_vcf_cli
+
+    assert callable(run_extract_cli)
+    assert callable(run_vcf_cli)
+    assert callable(run_server)
+
+
+def test_flake_packaging_and_nixos_module_declaration() -> None:
+    """Vérifie que `flake.nix` expose `buildPythonApplication`, `oci-image`, `apps.sgdf-api` et `nixosModules.default`."""
+    flake_path = PROJECT_ROOT / "flake.nix"
+    flake_content = flake_path.read_text(encoding="utf-8")
+
+    for required_token in (
+        "buildPythonApplication",
+        "dockerTools.buildLayeredImage",
+        "oci-image",
+        "sgdf-api",
+        "sgdf-extract",
+        "sgdf-vcf",
+        "nixosModules",
+        "services.sgdf-utils",
+        "environmentFile",
+        "DynamicUser = true",
+        'StateDirectory = "sgdf-utils"',
+        'ProtectSystem = "strict"',
+        "ProtectHome = true",
+        "PrivateTmp = true",
+        "NoNewPrivileges = true",
+    ):
+        assert required_token in flake_content, (
+            f"L'élément '{required_token}' doit être déclaré dans `flake.nix`."
+        )

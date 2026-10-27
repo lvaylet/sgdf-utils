@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sgdf-contacts"
+version = "1.0.0"
+description = "Extraction, persistance SQLite et API HTTP REST des contacts parents du groupe scout SGDF de La Rochelle"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas",
+    "beautifulsoup4",
+    "lxml",
+    "xlrd",
+    "openpyxl",
+    "sqlmodel",
+    "sqlalchemy",
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+    "httpx",
+]
+
+[project.scripts]
+sgdf-extract = "sgdf_contacts.entrypoints.cli_extract:main"
+sgdf-vcf = "sgdf_contacts.entrypoints.cli_vcf:main"
+sgdf-api = "sgdf_contacts.entrypoints.api:run_server"
+
+[tool.setuptools]
+py-modules = [
+    "extract_parent_contacts",
+    "generate_contacts_vcf",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sgdf_contacts*"]

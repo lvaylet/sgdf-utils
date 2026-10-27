@@ -35,6 +35,7 @@ venv/
 dist/
 build/
 *.egg-info/
+*.whl
 
 # 4. Fichiers système et éditeurs
 .DS_Store

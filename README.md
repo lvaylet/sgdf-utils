@@ -135,7 +135,10 @@ La logique métier et technique est mutualisée dans le package Python `sgdf_con
   - l'import transactionnel idempotent (`sync_parents`, `import_individuals_xls`) avec calcul automatique de différentiel (`ImportDiffReport` : `created`, `updated` avec détail des champs modifiés via `FieldChange`, `unchanged`, `deactivated` sans perte des métadonnées externes comme `has_whatsapp`),
   - le requêtage et le filtrage (`list_active_parents`, `filter_parents` par unité courte, statut d'inscription ou présence d'un portable valide, `find_by_phone`),
   - la régénération directe de `ContactParents.vcf` (`export_vcf`) et de `ContactsParents.xlsx` (`export_excel`) depuis la base SQLite sans relire `ExportIndividus.xls`.
-- **`sgdf_contacts/entrypoints/api.py`** : API HTTP REST (`FastAPI`) dotée d'une spécification OpenAPI automatique (`/docs`, `/openapi.json`) pour l'intégration avec **n8n** et **WAHA**.
+- **`sgdf_contacts/entrypoints/`** : Points d'entrée exécutables déclarés dans `pyproject.toml` :
+  - `sgdf_contacts/entrypoints/cli_extract.py` (`sgdf-extract`),
+  - `sgdf_contacts/entrypoints/cli_vcf.py` (`sgdf-vcf`),
+  - `sgdf_contacts/entrypoints/api.py` (`sgdf-api`) : API HTTP REST (`FastAPI`) dotée d'une spécification OpenAPI automatique (`/docs`, `/openapi.json`) pour l'intégration avec **n8n** et **WAHA**.
 
 ## 6. API HTTP REST pour n8n et WAHA (`sgdf_contacts.entrypoints.api`)
 
@@ -151,10 +154,14 @@ Le module `sgdf_contacts/entrypoints/api.py` expose le référentiel SQLite des 
 ### Démarrage du serveur
 
 ```bash
-# Démarrage avec uvicorn
-uvicorn sgdf_contacts.entrypoints.api:app --host 0.0.0.0 --port 8000
+# Démarrage direct via Nix
+nix run .#sgdf-api
 
-# Ou via le module Python (utilise SGDF_HOST et SGDF_PORT)
+# Ou via la commande installée par le paquet Python
+sgdf-api
+
+# Ou avec uvicorn / le module Python (utilise SGDF_HOST et SGDF_PORT)
+uvicorn sgdf_contacts.entrypoints.api:app --host 0.0.0.0 --port 8000
 python3 -m sgdf_contacts.entrypoints.api
 ```
 
@@ -168,7 +175,122 @@ python3 -m sgdf_contacts.entrypoints.api
 - **`PATCH /api/v1/parents/{parent_id}`** : Mise à jour partielle des métadonnées d'intégration (ex. `{"has_whatsapp": true}`).
 - **`GET /api/v1/exports/vcf`** et **`GET /api/v1/exports/xlsx`** : Téléchargement à la volée des fichiers `ContactParents.vcf` et `ContactsParents.xlsx` générés depuis la base (avec filtres optionnels).
 
-## 7. Vérification et tests
+## 7. Packaging Nix, Déploiement NixOS Homelab et Intégration n8n / WAHA
+
+### 7.1. Paquet Python Nix (`pyproject.toml` + `buildPythonApplication`) et image OCI
+
+Le fichier `pyproject.toml` déclare le paquet `sgdf-contacts` et trois exécutables console (`sgdf-extract`, `sgdf-vcf`, `sgdf-api`), construits et vérifiés dans le bac à sable Nix par `flake.nix` :
+
+```bash
+# Construire le paquet Python (exécute automatiquement pytest dans checkPhase)
+nix build
+./result/bin/sgdf-extract --help
+./result/bin/sgdf-vcf --help
+./result/bin/sgdf-api
+
+# Lancer directement les applications via nix run
+nix run .#sgdf-api
+nix run .#sgdf-extract -- --help
+nix run .#sgdf-vcf -- --help
+
+# Construire l'image conteneur OCI minimale (sur Linux, pour Podman / Docker)
+nix build .#oci-image
+podman load < ./result
+
+# Valider le flake complet (paquet, image OCI et évaluation du module NixOS)
+nix flake check
+```
+
+### 7.2. Déploiement déclaratif sur le Homelab NixOS (`nixosModules.default`)
+
+Pour déployer le service sur un serveur NixOS aux côtés de **n8n** et **WAHA**, ajoutez `sgdf-utils` dans les `inputs` du `flake.nix` de votre homelab et importez `sgdf-utils.nixosModules.default` :
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    sops-nix.url = "github:Mic92/sops-nix";
+    sgdf-utils.url = "github:lvaylet/sgdf-utils";
+  };
+
+  outputs = { self, nixpkgs, sops-nix, sgdf-utils, ... }: {
+    nixosConfigurations.homelab = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        sops-nix.nixosModules.sops
+        sgdf-utils.nixosModules.default
+        ({ config, ... }: {
+          # Secret géré par sops-nix ou agenix contenant : SGDF_API_KEY=votre-cle-secrete
+          sops.secrets."sgdf-utils/env" = { };
+
+          services.sgdf-utils = {
+            enable = true;
+            host = "127.0.0.1";
+            port = 8000;
+            dataDir = "/var/lib/sgdf-utils";
+            environmentFile = config.sops.secrets."sgdf-utils/env".path;
+          };
+        })
+      ];
+    };
+  };
+}
+```
+
+Le module `services.sgdf-utils` génère automatiquement une unité `systemd.services.sgdf-utils` durcie :
+- `DynamicUser = true` et `StateDirectory = "sgdf-utils"` (persistance automatique de `/var/lib/sgdf-utils/sgdf.sqlite3`),
+- `ProtectSystem = "strict"`, `ProtectHome = true`, `PrivateTmp = true`, `NoNewPrivileges = true`,
+- injection sécurisée de `SGDF_API_KEY` via `EnvironmentFile` sans exposition dans `/nix/store`.
+
+### 7.3. Exemples de configuration de workflows n8n et WAHA
+
+Dans **n8n**, créez un identifiant d'authentification (*Header Auth*) nommé `SGDF API Key` avec :
+- **Name** : `X-API-Key`
+- **Value** : `<valeur de SGDF_API_KEY>`
+
+#### Scénario 1 — Synchronisation automatique d'un export `ExportIndividus.xls`
+
+- **Nœud n8n HTTP Request** :
+  - **Method** : `POST`
+  - **URL** : `http://127.0.0.1:8000/api/v1/imports/intranet`
+  - **Authentication** : *Header Auth* (`X-API-Key`)
+  - **Body Content Type** : `Form-Data (Multipart)`
+  - **Parameter Type** : *n8n Binary File* (`Input Data Field Name` : `data`, `Name` : `file`)
+- **Exploitation de la réponse JSON** :
+  - `{{ $json.total_parents }}` : nombre total de parents actifs dans l'export
+  - `{{ $json.created }}` / `{{ $json.updated }}` / `{{ $json.deactivated }}` : compteurs de changements permettant de déclencher une notification s'il y a de nouvelles inscriptions ou des modifications de coordonnées (`{{ $json.changes.updated }}`).
+
+#### Scénario 2 — Diffusion d'un message WhatsApp aux parents d'une unité via WAHA
+
+1. **Nœud n8n HTTP Request (Récupération des destinataires)** :
+   - **Method** : `GET`
+   - **URL** : `http://127.0.0.1:8000/api/v1/units/FARFADETS/whatsapp-recipients` (ou `LJ`, `SG`, `PC`, `COMPAGNONS`)
+   - **Authentication** : *Header Auth* (`X-API-Key`)
+2. **Nœud n8n HTTP Request / WAHA (Envoi du message)** pour chaque élément retourné :
+   - **Method** : `POST`
+   - **URL** : `http://127.0.0.1:3000/api/sendText`
+   - **Body JSON** :
+     ```json
+     {
+       "session": "default",
+       "chatId": "{{ $json.waha_chat_id }}",
+       "text": "Bonjour {{ $json.first_name }}, rappel pour la sortie de ce week-end !"
+     }
+     ```
+
+#### Scénario 3 — Identification d'un parent sur réception d'un message entrant WAHA et mise à jour de `has_whatsapp`
+
+1. **Webhook WAHA (`message`)** reçu dans n8n contenant `{{ $json.payload.from }}` (ex. `33687966975@c.us`).
+2. **Nœud n8n HTTP Request (Identification du parent)** :
+   - **Method** : `GET`
+   - **URL** : `http://127.0.0.1:8000/api/v1/parents/by-phone/{{ encodeURIComponent($json.payload.from) }}`
+   - **Authentication** : *Header Auth* (`X-API-Key`)
+3. **Nœud n8n HTTP Request (Confirmation de la présence WhatsApp)** :
+   - **Method** : `PATCH`
+   - **URL** : `http://127.0.0.1:8000/api/v1/parents/{{ $json.id }}`
+   - **Body JSON** : `{"has_whatsapp": true}`
+
+## 8. Vérification et tests
 
 Une fois dans le dossier (avec l'environnement actif), vous pouvez vérifier le bon fonctionnement de l'installation et la conformité du code :
 
@@ -178,9 +300,12 @@ pytest -v
 
 # Vérifier la qualité et le style du code Python
 ruff check .
+
+# Valider le flake Nix complet et le module NixOS
+nix flake check
 ```
 
-## 8. Confidentialité des données (RGPD)
+## 9. Confidentialité des données (RGPD)
 
 Conformément à la constitution du projet :
 
